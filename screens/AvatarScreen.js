@@ -13,21 +13,23 @@ import {
 } from "react-native";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 SplashScreen.preventAutoHideAsync();
 
 const { width } = Dimensions.get("window");
 
 export default function AvatarScreen() {
-    // const [loaded] = useFonts({
-    //     "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
-    // });
+    const [loaded] = useFonts({
+        "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
+    });
 
-    // useEffect(() => {
-    //     if (loaded) SplashScreen.hideAsync();
-    // }, [loaded]);
+    useEffect(() => {
+        if (loaded) SplashScreen.hideAsync();
+    }, [loaded]);
 
-    // if (!loaded) return null;
+    if (!loaded) return null;
 
     const [signUpUsername, setSignUpUsername] = useState("");
     const [selectedAvatar, setSelectedAvatar] = useState(null);
@@ -48,7 +50,12 @@ export default function AvatarScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <LinearGradient
+            colors={['#eeddfd', '#d5c3f3']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.container}
+        >
             <SafeAreaView />
 
             <View style={styles.avatarContainer}>
@@ -79,9 +86,10 @@ export default function AvatarScreen() {
             />
 
             <TouchableOpacity onPress={handleRegister} style={styles.button}>
-                <Text style={styles.buttonText}>C'est parti !</Text>
+                <Text style={styles.textButton}>C'est parti !</Text>
             </TouchableOpacity>
-        </View>
+        </LinearGradient>
+
     );
 }
 
@@ -121,15 +129,16 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     text: {
-        fontSize: 32,
+        fontSize: 40,
         fontFamily: "Fustat-ExtraBold.ttf",
-        color: "#FFFFFF",
+        color: "#fb7a68",
         paddingTop: 80,
+        marginBottom: 10,
     },
     subtitle: {
-        fontSize: 32,
+        fontSize: 40,
         fontFamily: "Fustat-ExtraBold.ttf",
-        color: "white",
+        color: "#fb7a68",
         marginBottom: 20,
         marginTop: -25,
     },
@@ -140,7 +149,7 @@ const styles = StyleSheet.create({
     image: {
         width: width * 0.4,
         height: width * 0.4,
-        borderRadius: 100,
+        borderRadius: 55,
         marginHorizontal: 15,
         elevation: 3,
     },
@@ -152,24 +161,34 @@ const styles = StyleSheet.create({
         width: "80%",
         height: 70,
         backgroundColor: "#F0F0F0",
-        borderRadius: 12,
+        borderRadius: 33,
         marginTop: 10,
         paddingLeft: 20,
         fontSize: 15,
     },
     button: {
-        width: "80%",
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '80%',
         height: 72,
-        backgroundColor: "#FF8527",
-        marginTop: 20,
-        borderRadius: 20,
-        alignItems: "center",
-        justifyContent: "center",
-        elevation: 3,
+        backgroundColor: '#e9d8f9',
+        margin: 15,
+        borderRadius: 33,
+        shadowColor: '#000',
+        shadowOffset: { width: 6, height: 4 }, // ➡️ vers la droite
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+
+        // ✅ Android (ombre plus forte aussi)
+        elevation: 10,
     },
-    buttonText: {
-        fontSize: 20,
+    textButton: {
+        fontSize: 24,
         fontFamily: "Fustat-ExtraBold.ttf",
-        color: "white",
+        alignItems: 'center',
+        alignContent: 'flex-end',
+        justifyContent: 'center',
+        color: "",
+        padding: 10,
     },
 });

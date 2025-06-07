@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 SplashScreen.preventAutoHideAsync();
 
 const { width } = Dimensions.get("window");
@@ -66,7 +67,12 @@ export default function ProfileScreen({ navigation }) {
     };
 
     return (
-        <View style={styles.container}>
+        <LinearGradient
+            colors={['#eeddfd', '#d5c3f3']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.container}
+        >
             <SafeAreaView />
             <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
                 <FontAwesome name='sign-out' size={30} color='#85CAE4' />
@@ -137,7 +143,7 @@ export default function ProfileScreen({ navigation }) {
                     </View>
                 </Modal>
             )}
-        </View>
+        </LinearGradient>
     );
 }
 

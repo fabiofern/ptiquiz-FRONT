@@ -7,7 +7,7 @@ import MapScreen from './screens/MapScreen';
 import LoginScreen from './screens/LoginScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AvatarScreen from './screens/AvatarScreen';
-
+import QuizScreen from './screens/QuizScreen';
 import { Provider } from "react-redux";
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { persistReducer, persistStore } from "redux-persist";
@@ -34,6 +34,8 @@ const TabNavigator = () => {
 							return <FontAwesome name="user-circle" size={size} color={color} />;
 						case "Profil":
 							return <FontAwesome name="id-card" size={size} color={color} />;
+						case "Quiz":
+							return <FontAwesome name="question-circle" size={size} color={color} />;
 					}
 				},
 				tabBarActiveTintColor: "#2196f3",
@@ -45,6 +47,7 @@ const TabNavigator = () => {
 			<Tab.Screen name="Map" component={MapScreen} />
 			<Tab.Screen name="Avatar" component={AvatarScreen} />
 			<Tab.Screen name="Profil" component={ProfileScreen} />
+			<Tab.Screen name="Quiz" component={QuizScreen} />
 		</Tab.Navigator>
 	);
 };
