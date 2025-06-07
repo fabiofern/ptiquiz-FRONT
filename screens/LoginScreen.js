@@ -144,7 +144,7 @@ export default function LoginScreen({ navigation }) {
             <SafeAreaView />
             {!modalLogIn && !modalSignUp && (
                 <View style={styles.signContainer}>
-                    <Image source={require('../assets/LogoXscapeOkWhite.png')} style={styles.logo} />
+                    <Image source={require('../assets/ddd.png')} style={styles.logo} />
                     <TouchableOpacity style={styles.buttonHp} onPress={() => setmodalLogIn(true)}>
                         <Text style={styles.textButtonHp}>Se connecter</Text>
                     </TouchableOpacity>
