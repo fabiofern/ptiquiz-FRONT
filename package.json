@@ -32,7 +32,8 @@
     "redux-persist": "^6.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "@babel/plugin-transform-template-literals": "^7.27.1"
   },
   "private": true
 }
