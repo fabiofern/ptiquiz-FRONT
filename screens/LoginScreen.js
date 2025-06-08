@@ -1,15 +1,11 @@
-import React, { useState } from "react";
 import { StyleSheet, View, SafeAreaView, Button, TextInput, Text, Modal, TouchableOpacity, Image } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { addUserToStore } from '../reducers/users';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { checkBody } from '../modules/checkBody';
 import { BlurView } from 'expo-blur';
-
+import { useState } from "react";
 SplashScreen.preventAutoHideAsync();
 
 
@@ -40,7 +36,6 @@ export default function LoginScreen({ navigation }) {
 
     // Retourner null tant que la police n'est pas chargée
 
-    const dispatch = useDispatch();
     const [showPasswordConnection, setShowPasswordConnection] = useState(true);
     const [showPassword, setShowPassword] = useState(true);
     const [showPassword2, setShowPassword2] = useState(true);
@@ -89,7 +84,7 @@ export default function LoginScreen({ navigation }) {
             .then(response => response.json())
             .then(data => {
                 if (data.result) {
-                    dispatch(addUserToStore({ token: data.token, userID: data._id }));
+                    // dispatch(addUserToStore({ token: data.token, userID: data._id }));
                     console.log(data._id)
                     setSignUpPassword('');
                     setEmail('');
@@ -125,7 +120,7 @@ export default function LoginScreen({ navigation }) {
             .then(response => response.json())
             .then(data => {
                 if (data.result) {
-                    dispatch(addUserToStore({ token: data.token, avatar: data.avatar, username: data.username, userID: data._id }));
+                    // dispatch(addUserToStore({ token: data.token, avatar: data.avatar, username: data.username, userID: data._id }));
                     setEmail('');
                     setLogInPassword('');
                     setmodalLogIn(false);
@@ -267,7 +262,7 @@ const styles = StyleSheet.create({
         padding: 20,
         borderRadius: 33,
         overflow: 'hidden',
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        backgroundColor: 'rgba(255, 255, 255, 0.)',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.3)',
 

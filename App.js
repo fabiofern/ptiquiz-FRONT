@@ -1,87 +1,59 @@
-import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import FontAwesome from "react-native-vector-icons/FontAwesome";
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import MapScreen from './screens/MapScreen';
+// Tes imports d'écrans
 import LoginScreen from './screens/LoginScreen';
-import ProfileScreen from './screens/ProfileScreen';
 import AvatarScreen from './screens/AvatarScreen';
-import QuizScreen from './screens/QuizScreen';
-import { Provider } from "react-redux";
-import { combineReducers, configureStore } from "@reduxjs/toolkit";
-import { persistReducer, persistStore } from "redux-persist";
-import { PersistGate } from "redux-persist/integration/react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import MapScreen from './screens/MapScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
-import user from "./reducers/users";
-
-const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-// 🧩 Tab Navigator temporaire
-const TabNavigator = () => {
+// Stack pour chaque écran
+function LoginStack() {
 	return (
-		<Tab.Navigator
-			screenOptions={({ route }) => ({
-				tabBarIcon: ({ color, size }) => {
-					switch (route.name) {
-						case 'Login':
-							return <FontAwesome name="sign-in" size={size} color={color} />;
-						case "Map":
-							return <FontAwesome name="map" size={size} color={color} />;
-						case "Avatar":
-							return <FontAwesome name="user-circle" size={size} color={color} />;
-						case "Profil":
-							return <FontAwesome name="id-card" size={size} color={color} />;
-						case "Quiz":
-							return <FontAwesome name="question-circle" size={size} color={color} />;
-					}
-				},
-				tabBarActiveTintColor: "#2196f3",
-				tabBarInactiveTintColor: "gray",
-				headerShown: false,
-			})}
-		>
-			<Tab.Screen name="Login" component={LoginScreen} />
-			<Tab.Screen name="Map" component={MapScreen} />
-			<Tab.Screen name="Avatar" component={AvatarScreen} />
-			<Tab.Screen name="Profil" component={ProfileScreen} />
-			<Tab.Screen name="Quiz" component={QuizScreen} />
-		</Tab.Navigator>
-	);
-};
-
-// Redux persist config
-const persistedReducers = persistReducer(
-	{
-		key: "expojs-starter",
-		storage: AsyncStorage,
-		whitelist: ["user"],
-	},
-	combineReducers({ user })
-);
-
-const store = configureStore({
-	reducer: persistedReducers,
-	middleware: (getDefaultMiddleware) =>
-		getDefaultMiddleware({ serializableCheck: false }),
-});
-
-const persistor = persistStore(store);
-
-// 🎯 App principale
-export default function App() {
-	return (
-		<Provider store={store}>
-			<NavigationContainer>
-				<TabNavigator />
-			</NavigationContainer>
-		</Provider>
+		<Stack.Navigator>
+			<Stack.Screen name="LoginScreen" component={LoginScreen} />
+		</Stack.Navigator>
 	);
 }
 
-/* <Stack.Navigator screenOptions={{ headerShown: false }}>
-	<Stack.Screen name="Login" component={LoginScreen} />
-	<Stack.Screen name="Main" component={TabNavigator} />
-</Stack.Navigator> */
+function AvatarStack() {
+	return (
+		<Stack.Navigator>
+			<Stack.Screen name="AvatarScreen" component={AvatarScreen} />
+		</Stack.Navigator>
+	);
+}
+
+function MapStack() {
+	return (
+		<Stack.Navigator>
+			<Stack.Screen name="MapScreen" component={MapScreen} />
+		</Stack.Navigator>
+	);
+}
+
+function ProfileStack() {
+	return (
+		<Stack.Navigator>
+			<Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+		</Stack.Navigator>
+	);
+}
+
+export default function App() {
+	return (
+		<NavigationContainer>
+			<Tab.Navigator>
+				<Tab.Screen name="Login" component={LoginStack} />
+				<Tab.Screen name="Avatar" component={AvatarStack} />
+				<Tab.Screen name="Map" component={MapStack} />
+				<Tab.Screen name="Profile" component={ProfileStack} />
+			</Tab.Navigator>
+		</NavigationContainer>
+	);
+}

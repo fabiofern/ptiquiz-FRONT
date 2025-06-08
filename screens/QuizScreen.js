@@ -1,13 +1,12 @@
-import React, { useState } from "react";
+
 import { StyleSheet, View, SafeAreaView, Button, TextInput, Text, Modal, TouchableOpacity, Image, ScrollView } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { addUserToStore } from '../reducers/users';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
+
+
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFonts } from "expo-font";
+
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { checkBody } from '../modules/checkBody';
+
 import { BlurView } from 'expo-blur';
 
 SplashScreen.preventAutoHideAsync();

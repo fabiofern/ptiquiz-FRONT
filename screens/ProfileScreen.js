@@ -9,6 +9,9 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+
+
+
 SplashScreen.preventAutoHideAsync();
 
 const { width } = Dimensions.get("window");
@@ -21,18 +24,19 @@ export default function ProfileScreen({ navigation }) {
         "Fustat-SemiBold.ttf": require("../assets/fonts/Fustat-SemiBold.ttf"),
     });
 
+    console.log("retour du selector des Données utilisateur:", username, avatar, email, score);
+
     useEffect(() => {
         if (loaded) SplashScreen.hideAsync();
     }, [loaded]);
 
     if (!loaded) return null;
 
-    const [username, setUsername] = useState("Détective Fabio");
-    const [avatar, setAvatar] = useState(require("../assets/avatars/avatar01.png"));
-    const [email, setEmail] = useState("fabio@detective.com");
-    const [score, setScore] = useState(420);
+    const [username, setUsername] = useState("");
+    const [avatar, setAvatar] = useState('');
+    const [email, setEmail] = useState('');
+    const [score, setScore] = useState('');
     const [finishedScenario, setFinishedScenarios] = useState([
-        "L'Affaire du Manoir", "Le Code d'Or"
     ]);
 
     const [modalUserVisible, setUserModalVisible] = useState(false);

@@ -16,11 +16,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
+
 SplashScreen.preventAutoHideAsync();
 
 const { width } = Dimensions.get("window");
 
-export default function AvatarScreen() {
+export default function AvatarScreen({ navigation }) {
     const [loaded] = useFonts({
         "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
     });
@@ -44,9 +45,13 @@ export default function AvatarScreen() {
         if (!selectedAvatar || signUpUsername.trim() === "") {
             alert("Choisis un avatar et un pseudo !");
             return;
+        } else {
+            console.log("Pseudo :", signUpUsername);
+            console.log("Avatar sélectionné :", selectedAvatar);
+
+            // Ici, tu peux ajouter la logique pour enregistrer l'utilisateur
+            navigation.navigate('Map')
         }
-        console.log("Pseudo :", signUpUsername);
-        console.log("Avatar sélectionné :", selectedAvatar);
     };
 
     return (
