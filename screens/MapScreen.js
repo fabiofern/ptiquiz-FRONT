@@ -1,17 +1,31 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, StyleSheet, ActivityIndicator, Text, Image } from "react-native";
+import { View, StyleSheet, ActivityIndicator, Text, Image, Alert } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from 'react-redux';
+import { updateUser } from '../redux/userSlice';
+import { LocationService } from '../services/LocationService.js';
 
 export default function MapScreen() {
+  const dispatch = useDispatch();
+  const { userData, isLoggedIn } = useSelector((state) => state.user);
+
   const [userLocation, setUserLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locationError, setLocationError] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState(null);
+  const [locationPermissions, setLocationPermissions] = useState(null);
 
   const mapRef = useRef(null);
 
+  // États possibles d'un quiz
+  const QUIZ_STATES = {
+    LOCKED: 'locked',           // Rouge - Trop loin
+    UNLOCKED: 'unlocked',       // Jaune - Débloqué mais pas fait
+    COMPLETED: 'completed',     // Bleu - Fait mais pas 100%
+    PERFECT: 'perfect'          // Vert - 100% réussi
+  };
   // tabelau de question a mapper avant d avoir le pbranhcment bdd
   const quizPoints =
     [
@@ -1111,26 +1125,153 @@ export default function MapScreen() {
 
 
 
+  const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3;
+    const toRad = (x) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Déterminer l'état d'un quiz
+  const getQuizState = (quiz) => {
+    if (!userLocation) return QUIZ_STATES.LOCKED;
+
+    const quizId = quiz._id.$oid;
+    const distance = getDistanceInMeters(
+      userLocation.latitude,
+      userLocation.longitude,
+      parseFloat(quiz.location.latitude),
+      parseFloat(quiz.location.longitude)
+    );
+
+    // Vérifier si complété
+    const completedQuiz = userData?.completedQuizzes?.[quizId];
+    if (completedQuiz) {
+      const totalPoints = quiz.quiz.reduce((acc, q) => acc + q.points, 0);
+      return completedQuiz.score === totalPoints ? QUIZ_STATES.PERFECT : QUIZ_STATES.COMPLETED;
+    }
+
+    // Vérifier si débloqué par la distance
+    const isUnlocked = userData?.unlockedQuizzes?.includes(quizId) || distance < 100;
+    return isUnlocked ? QUIZ_STATES.UNLOCKED : QUIZ_STATES.LOCKED;
+  };
+
+  // Couleur du pin selon l'état
+  const getPinColor = (state) => {
+    switch (state) {
+      case QUIZ_STATES.LOCKED: return '#FF6B6B';     // Rouge
+      case QUIZ_STATES.UNLOCKED: return '#FFD93D';   // Jaune
+      case QUIZ_STATES.COMPLETED: return '#6BCF7F';  // Bleu
+      case QUIZ_STATES.PERFECT: return '#4ECDC4';    // Vert
+      default: return '#FF6B6B';
+    }
+  };
+
+  // Description de l'état
+  const getStateDescription = (state) => {
+    switch (state) {
+      case QUIZ_STATES.LOCKED: return "🔒 Quiz verrouillé - Approche-toi !";
+      case QUIZ_STATES.UNLOCKED: return "🟡 Quiz débloqué - À toi de jouer !";
+      case QUIZ_STATES.COMPLETED: return "🔵 Quiz terminé - Bonne tentative !";
+      case QUIZ_STATES.PERFECT: return "🟢 Quiz parfait - Félicitations !";
+      default: return "🔒 Quiz verrouillé";
+    }
+  };
+
+  // Initialisation
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
+    if (!isLoggedIn) return;
+
+    const initializeLocation = async () => {
+      try {
+        // Demander permissions
+        const permissions = await LocationService.requestPermissions();
+        setLocationPermissions(permissions);
+
+        if (!permissions.foreground) {
+          setLocationError(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Obtenir position actuelle
+        const location = await LocationService.getCurrentLocation();
+        if (location) {
+          setUserLocation(location.coords);
+
+          // Démarrer géolocalisation en arrière-plan si autorisée
+          if (permissions.background) {
+            await LocationService.startBackgroundLocation();
+          }
+        }
+
+        setIsLoading(false);
+
+      } catch (error) {
+        console.error('Erreur initialisation:', error);
         setLocationError(true);
         setIsLoading(false);
-        return;
       }
+    };
 
-      const location = await Location.getCurrentPositionAsync({});
-      setUserLocation(location.coords);
-      setIsLoading(false);
-    })();
-  }, []);
+    initializeLocation();
+
+    // Nettoyage à la fermeture
+    return () => {
+      LocationService.stopBackgroundLocation();
+    };
+  }, [isLoggedIn]);
+
+  // Vérifier nouveaux déverrouillages quand la position change
+  useEffect(() => {
+    if (!userLocation || !userData) return;
+
+    const checkUnlocks = () => {
+      const currentUnlocked = userData.unlockedQuizzes || [];
+      const newUnlocked = [];
+
+      quizPoints.forEach((quiz) => {
+        const quizId = quiz._id.$oid;
+        const distance = getDistanceInMeters(
+          userLocation.latitude,
+          userLocation.longitude,
+          parseFloat(quiz.location.latitude),
+          parseFloat(quiz.location.longitude)
+        );
+
+        if (distance < 100 && !currentUnlocked.includes(quizId)) {
+          newUnlocked.push(quizId);
+        }
+      });
+
+      if (newUnlocked.length > 0) {
+        dispatch(updateUser({
+          userData: {
+            ...userData,
+            unlockedQuizzes: [...currentUnlocked, ...newUnlocked]
+          }
+        }));
+
+        Alert.alert(
+          '🎉 Nouveau quiz débloqué !',
+          `Tu as débloqué ${newUnlocked.length} nouveau(x) quiz !`,
+          [{ text: 'Super !', style: 'default' }]
+        );
+      }
+    };
+
+    checkUnlocks();
+  }, [userLocation, dispatch, userData]);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#009EBA" />
-        <Text style={styles.loaderText}>Chargement...</Text>
+        <ActivityIndicator size="large" color="#fb7a68" />
+        <Text style={styles.loaderText}>Localisation en cours...</Text>
       </SafeAreaView>
     );
   }
@@ -1139,14 +1280,19 @@ export default function MapScreen() {
     return (
       <SafeAreaView style={styles.loaderContainer}>
         <Text style={styles.errorMessage}>
-          Autorisation de géolocalisation refusée ou indisponible.
+          Autorisation de géolocalisation requise pour découvrir les quiz !
         </Text>
+        {locationPermissions && !locationPermissions.background && (
+          <Text style={styles.warningMessage}>
+            ⚠️ Géolocalisation en arrière-plan désactivée.
+            Tu devras ouvrir l'app pour débloquer les quiz.
+          </Text>
+        )}
       </SafeAreaView>
     );
   }
 
   return (
-    // <SafeAreaView style={{ flex: 1 }}>
     <MapView
       ref={mapRef}
       style={styles.map}
@@ -1157,30 +1303,44 @@ export default function MapScreen() {
         longitudeDelta: 0.01,
       }}
       onPress={() => {
-        if (selectedPoint) setSelectedPoint(null); // 👉 Fermer la fiche si elle est ouverte
+        if (selectedPoint) setSelectedPoint(null);
       }}
     >
       {/* Pin de l'utilisateur */}
-      <Marker coordinate={userLocation} />
+      <Marker
+        coordinate={userLocation}
+        title="Ma position"
+        description="Tu es ici !"
+        pinColor="#007AFF"
+      />
 
-      {/* Pins des lieux quiz */}
-      {quizPoints.map((point, index) => (
-        <Marker
-          key={index}
-          coordinate={{
-            latitude: parseFloat(point.location.latitude),
-            longitude: parseFloat(point.location.longitude)
-          }}
-          title={point.name}
-          onPress={() => setSelectedPoint(point)}
-        />
+      {/* Pins des quiz avec couleurs selon l'état */}
+      {quizPoints.map((point, index) => {
+        const state = getQuizState(point);
+        const pinColor = getPinColor(state);
 
-      ))}
+        return (
+          <Marker
+            key={index}
+            coordinate={{
+              latitude: parseFloat(point.location.latitude),
+              longitude: parseFloat(point.location.longitude)
+            }}
+            title={point.name}
+            description={getStateDescription(state)}
+            pinColor={pinColor}
+            onPress={() => setSelectedPoint({ ...point, state })}
+          />
+        );
+      })}
 
-      {/* Carte info visible seulement si un lieu est sélectionné */}
-      {selectedPoint ? (
-        <View style={styles.infoCard}>
-          {selectedPoint?.image && selectedPoint.image.startsWith('http') && (
+      {/* Carte info */}
+      {selectedPoint && (
+        <View style={[
+          styles.infoCard,
+          { borderLeftColor: getPinColor(selectedPoint.state) }
+        ]}>
+          {selectedPoint.image && selectedPoint.image.startsWith('http') && (
             <Image
               source={{ uri: selectedPoint.image }}
               style={styles.imageSide}
@@ -1190,16 +1350,17 @@ export default function MapScreen() {
           <View style={styles.infoText}>
             <Text style={styles.title}>{selectedPoint.name}</Text>
             <Text style={styles.description}>{selectedPoint.descriptionLieu}</Text>
-            <Text style={styles.description2}>Approche toi d'ici pour débloquer ce Tiquizz</Text>
+            <Text style={[
+              styles.stateText,
+              { color: getPinColor(selectedPoint.state) }
+            ]}>
+              {getStateDescription(selectedPoint.state)}
+            </Text>
             <Text style={styles.badge}>🏅 {selectedPoint.badgeDebloque}</Text>
           </View>
         </View>
-
-      ) : (<View style={styles.infoCardHidden}></View>)}
+      )}
     </MapView>
-
-
-    // </SafeAreaView>
   );
 }
 
