@@ -70,45 +70,6 @@ export default function MapScreen() {
     }
   };
 
-  // 🆕 Données de fallback 
-  const quizPointsFallback = [
-    {
-      "_id": "68446c823eaa6f50bd436d43",
-      "name": "Tour Eiffel",
-      "coordinate": { "latitude": 48.8584, "longitude": 2.2945 },
-      "arrondissement": "7ème",
-      "ville": "Paris",
-      "descriptionLieu": "Monument emblématique de Paris, construite pour l'Exposition universelle de 1889.",
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/1024px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg",
-      "badgeDebloque": "Gardien de la Dame de Fer",
-      "themeLieu": "Architecture",
-      "difficulteGlobale": "Facile",
-      "tempsEstime": "5-7 minutes",
-      "popularite": 5,
-      "accessible": true,
-      "totalPoints": 50,
-      "questionCount": 5,
-      "unlockRadius": 100
-    },
-    {
-      "_id": "68446c823eaa6f50bd436d44",
-      "name": "Notre-Dame de Paris",
-      "coordinate": { "latitude": 48.8530, "longitude": 2.3499 },
-      "arrondissement": "4ème",
-      "ville": "Paris",
-      "descriptionLieu": "Chef-d'œuvre de l'architecture gothique française.",
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Notre_Dame_de_Paris_2013-07-24.jpg/1024px-Notre_Dame_de_Paris_2013-07-24.jpg",
-      "badgeDebloque": "Gardien de Notre-Dame",
-      "themeLieu": "Architecture religieuse",
-      "difficulteGlobale": "Moyenne",
-      "tempsEstime": "6-8 minutes",
-      "popularite": 5,
-      "accessible": true,
-      "totalPoints": 60,
-      "questionCount": 6,
-      "unlockRadius": 100
-    }
-  ];
 
   const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3;
