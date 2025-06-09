@@ -17,7 +17,7 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locationError, setLocationError] = useState(false);
-  const [selectedPoint, setSelectedPoint] = useState(null);
+  // const [selectedPoint, setSelectedPoint] = useState(null);
   const [quizLocations, setQuizLocations] = useState([]);
   const [apiLoading, setApiLoading] = useState(true);
 
@@ -143,23 +143,12 @@ export default function MapScreen() {
     const state = getQuizState(quiz);
 
     if (state === QUIZ_STATES.UNLOCKED) {
-      console.log('🎮 Quiz débloqué! Prêt à jouer au quiz:', quiz.name);
-      // TODO: Navigation vers QuizScreen
+      console.log('🎮 Quiz débloqué!');
+      // Navigation vers QuizScreen
     } else if (state === QUIZ_STATES.LOCKED) {
-      const distance = userLocation ? getDistanceInMeters(
-        userLocation.latitude,
-        userLocation.longitude,
-        quiz.coordinate.latitude,
-        quiz.coordinate.longitude
-      ) : 999;
-
-      console.log(`🔒 Quiz verrouillé "${quiz.name}" - Distance: ${Math.round(distance)}m`);
-    } else {
-      setSelectedPoint({
-        ...quiz,
-        state: state
-      });
+      console.log('🔒 Quiz verrouillé');
     }
+    // 🚫 Plus de setSelectedPoint !
   };
 
   // 🎨 COMPOSANT PIN PERSONNALISÉ
@@ -393,9 +382,7 @@ export default function MapScreen() {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
-        onPress={() => {
-          if (selectedPoint) setSelectedPoint(null);
-        }}
+
       >
         {/* 📍 Pin utilisateur custom */}
         <Marker
@@ -475,42 +462,6 @@ export default function MapScreen() {
           </View>
         </LinearGradient>
       </BlurView>
-
-      {/* 📱 Carte info stylée */}
-      {selectedPoint && (
-        <BlurView intensity={90} style={styles.infoCard}>
-          <LinearGradient
-            colors={['rgba(246, 131, 108, 0.9)', 'rgba(251, 122, 104, 0.9)']}
-            style={styles.infoCardGradient}
-          >
-            <View style={[styles.infoCardBorder, { backgroundColor: getPinColor(selectedPoint.state) }]} />
-            {selectedPoint.image && selectedPoint.image.startsWith('http') && (
-              <Image
-                source={{ uri: selectedPoint.image }}
-                style={styles.imageSide}
-                resizeMode="cover"
-              />
-            )}
-            <View style={styles.infoText}>
-              <Text style={styles.title}>{selectedPoint.name}</Text>
-              <Text style={styles.description}>{selectedPoint.descriptionLieu}</Text>
-              <Text style={[
-                styles.stateText,
-                { color: getPinColor(selectedPoint.state) }
-              ]}>
-                {getStateDescription(selectedPoint.state)}
-              </Text>
-              <Text style={styles.badge}>🏅 {selectedPoint.badgeDebloque}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSelectedPoint(null)}
-            >
-              <FontAwesome name="times" size={14} color="white" />
-            </TouchableOpacity>
-          </LinearGradient>
-        </BlurView>
-      )}
     </View>
   );
 }

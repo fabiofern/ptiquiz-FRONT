@@ -14,7 +14,7 @@ import RewardsNotification from '../components/RewardsNotification';
 SplashScreen.preventAutoHideAsync();
 
 export default function QuizScreen({ navigation }) {
-    // Redux
+    const URL = process.env.EXPO_PUBLIC_BACKEND_URL
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
 
@@ -49,7 +49,7 @@ export default function QuizScreen({ navigation }) {
             setLoading(true);
             console.log('📚 Récupération quiz débloqués depuis l\'API...');
 
-            const response = await fetch(`http://192.168.2.16:3000/quizz/unlocked/${userData.userID}`, {
+            const response = await fetch(`${URL}/quizz/unlocked/${userData.userID}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -96,6 +96,20 @@ export default function QuizScreen({ navigation }) {
     }, [navigation, userData?.userID]);
 
     // Gestion de la réponse
+    // 🔧 REMPLACE CES DEUX FONCTIONS dans ton QuizScreen.js
+
+    // 🆕 FONCTION handleNextQuestion - EN DEHORS de handleAnswer
+    const handleNextQuestion = () => {
+        if (currentQuestionIndex + 1 < selectedQuiz.quiz.length) {
+            setCurrentQuestionIndex(prev => prev + 1);
+            setSelectedAnswerIndex(null);
+        } else {
+            // Quiz terminé
+            completeQuiz();
+        }
+    };
+
+    // 🔧 FONCTION handleAnswer CORRIGÉE - SANS le timer
     const handleAnswer = (answerIndex) => {
         if (selectedAnswerIndex !== null) return;
 
@@ -104,18 +118,16 @@ export default function QuizScreen({ navigation }) {
         const isCorrect = answerIndex === currentQuestion.bonneReponseIndex;
 
         if (isCorrect) {
-            setQuizScore(prev => prev + currentQuestion.points);
+            setQuizScore(prev => {
+                const newScore = prev + currentQuestion.points;
+                console.log(`✅ Bonne réponse! +${currentQuestion.points} points. Score total: ${newScore}`);
+                return newScore;
+            });
+        } else {
+            console.log(`❌ Mauvaise réponse. Score reste: ${quizScore}`);
         }
 
-        setTimeout(() => {
-            if (currentQuestionIndex + 1 < selectedQuiz.quiz.length) {
-                setCurrentQuestionIndex(prev => prev + 1);
-                setSelectedAnswerIndex(null);
-            } else {
-                // Quiz terminé
-                completeQuiz();
-            }
-        }, 1500);
+        // 🚫 PLUS DE TIMER - L'utilisateur contrôle avec le bouton
     };
 
     // 🎯 Sauvegarder via API
@@ -123,7 +135,7 @@ export default function QuizScreen({ navigation }) {
         try {
             console.log('💾 Sauvegarde quiz via API...');
 
-            const response = await fetch('http://192.168.2.16:3000/quizz/complete', {
+            const response = await fetch(`${URL}/quizz/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -427,14 +439,39 @@ export default function QuizScreen({ navigation }) {
                                                 onPress={() => handleAnswer(i)}
                                                 disabled={selectedAnswerIndex !== null}
                                             >
-                                                <Text style={styles.answerText}>{reponse}</Text>
+                                                <Text style={[
+                                                    styles.answerText,
+                                                    selectedAnswerIndex === i && { color: 'white', fontWeight: '600' }
+                                                ]}>
+                                                    {reponse}
+                                                </Text>
                                             </TouchableOpacity>
                                         ))}
 
+                                        {/* 🎓 FUN FACT - Seulement si bonne réponse */}
+                                        {selectedAnswerIndex !== null &&
+                                            selectedAnswerIndex === selectedQuiz.quiz[currentQuestionIndex].bonneReponseIndex && (
+                                                <View style={styles.funFactContainer}>
+                                                    <Text style={styles.funFactTitle}>💡 Le savais-tu ?</Text>
+                                                    <Text style={styles.funFactText}>
+                                                        {selectedQuiz.quiz[currentQuestionIndex].explication}
+                                                    </Text>
+                                                </View>
+                                            )}
+
+                                        {/* ➡️ BOUTON QUESTION SUIVANTE - Apparaît après réponse */}
                                         {selectedAnswerIndex !== null && (
-                                            <Text style={styles.explanation}>
-                                                💡 {selectedQuiz.quiz[currentQuestionIndex].explication}
-                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.nextQuestionButton}
+                                                onPress={handleNextQuestion}
+                                            >
+                                                <Text style={styles.nextQuestionText}>
+                                                    {currentQuestionIndex + 1 < selectedQuiz.quiz.length
+                                                        ? "Question suivante →"
+                                                        : "Voir les résultats 🏆"
+                                                    }
+                                                </Text>
+                                            </TouchableOpacity>
                                         )}
                                     </>
                                 ) : null
@@ -737,5 +774,44 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         color: 'white',
+    },
+    funFactContainer: {
+        backgroundColor: 'rgba(133, 202, 228, 0.2)',
+        borderRadius: 12,
+        padding: 15,
+        marginTop: 15,
+        marginBottom: 10,
+        borderLeftWidth: 4,
+        borderLeftColor: '#85CAE4',
+    },
+    funFactTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#3a2e6b',
+        marginBottom: 8,
+    },
+    funFactText: {
+        fontSize: 14,
+        color: '#4a3b79',
+        lineHeight: 20,
+        fontStyle: 'italic',
+    },
+    nextQuestionButton: {
+        backgroundColor: '#85CAE4',
+        borderRadius: 15,
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        marginTop: 15,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    nextQuestionText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

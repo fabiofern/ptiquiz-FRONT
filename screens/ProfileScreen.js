@@ -10,6 +10,7 @@ import { resetUser } from '../redux/userSlice';
 import { RewardsService, MEDALS, TROPHIES, TITLES } from '../services/RewardsService';
 
 export default function ProfileScreen({ navigation }) {
+    const URL = process.env.EXPO_PUBLIC_BACKEND_URL
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
     const [refreshKey, setRefreshKey] = useState(0);
