@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     StyleSheet, View, SafeAreaView, TextInput, Text, Modal, TouchableOpacity,
-    Image, ScrollView, Alert
+    Image, ScrollView, Alert, ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from "expo-splash-screen";
@@ -10,7 +10,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateUser } from '../redux/userSlice';
 import { RewardsService } from '../services/RewardsService';
 import RewardsNotification from '../components/RewardsNotification';
-import * as Location from "expo-location";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,12 +20,12 @@ export default function QuizScreen({ navigation }) {
 
     // États locaux
     const [unlockedQuizzes, setUnlockedQuizzes] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [selectedQuiz, setSelectedQuiz] = useState(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [showModal, setShowModal] = useState(false);
     const [quizScore, setQuizScore] = useState(0);
     const [selectedAnswerIndex, setSelectedAnswerIndex] = useState(null);
-    const [userLocation, setUserLocation] = useState(null);
     const [showResults, setShowResults] = useState(false);
     const [newRewards, setNewRewards] = useState([]);
     const [showRewardsNotification, setShowRewardsNotification] = useState(false);
@@ -38,71 +37,63 @@ export default function QuizScreen({ navigation }) {
         }
     }, [isLoggedIn, navigation]);
 
-    const quizPoints = [
-        // ... tous vos quiz data (gardez le même array)
-        {
-            "_id": { "$oid": "68446c823eaa6f50bd436d43" },
-            "name": "Tour Eiffel",
-            "location": { "latitude": "48.8584", "longitude": "2.2945" },
-            "arrondissement": "7ème",
-            "ville": "Paris",
-            "descriptionLieu": "Monument emblématique de Paris, construite pour l'Exposition universelle de 1889.",
-            "badgeDebloque": "Gardien de la Dame de Fer",
-            "themeLieu": "Architecture",
-            "quiz": [
-                {
-                    "question": "En quelle année la Tour Eiffel a-t-elle été inaugurée ?",
-                    "reponses": ["1887", "1889", "1891", "1893"],
-                    "bonneReponseIndex": 1,
-                    "explication": "La Tour Eiffel a été inaugurée en 1889 pour l'Exposition universelle.",
-                    "theme": "Histoire",
-                    "difficulte": "Facile",
-                    "points": 10
-                }
-            ]
+    // 🎯 Récupérer les quiz débloqués depuis l'API
+    const fetchUnlockedQuizzes = async () => {
+        if (!userData?.userID) {
+            console.log('❌ Pas d\'userID disponible');
+            setLoading(false);
+            return;
         }
-        // ... ajoutez tous vos autres quiz
-    ];
 
-    // Obtenir la géolocalisation
-    useEffect(() => {
-        (async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status === 'granted') {
-                const location = await Location.getCurrentPositionAsync({});
-                setUserLocation(location.coords);
+        try {
+            setLoading(true);
+            console.log('📚 Récupération quiz débloqués depuis l\'API...');
+
+            const response = await fetch(`http://192.168.2.16:3000/quizz/unlocked/${userData.userID}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
             }
-        })();
-    }, []);
 
-    // Calcul de distance
-    const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
-        const R = 6371e3;
-        const toRad = (x) => (x * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
+            const data = await response.json();
+            console.log('📊 Réponse API unlocked:', data);
+
+            if (data.result && data.quiz) {
+                setUnlockedQuizzes(data.quiz);
+                console.log(`✅ ${data.quiz.length} quiz débloqués chargés`);
+            } else {
+                console.log('ℹ️ Aucun quiz débloqué trouvé');
+                setUnlockedQuizzes([]);
+            }
+        } catch (error) {
+            console.error('❌ Erreur récupération quiz débloqués:', error);
+            setUnlockedQuizzes([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // Détermine les quiz débloqués
+    // 🎯 Charger les quiz au montage du composant
     useEffect(() => {
-        if (!userLocation) return;
+        if (userData?.userID) {
+            fetchUnlockedQuizzes();
+        }
+    }, [userData?.userID]);
 
-        const nearby = quizPoints.filter((point) => {
-            const distance = getDistanceInMeters(
-                userLocation.latitude,
-                userLocation.longitude,
-                parseFloat(point.location.latitude),
-                parseFloat(point.location.longitude)
-            );
-            return distance < 50; // 50 mètres pour production
+    // 🎯 Recharger quand on revient sur l'écran (focus)
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (userData?.userID) {
+                fetchUnlockedQuizzes();
+            }
         });
-
-        setUnlockedQuizzes(nearby);
-    }, [userLocation]);
+        return unsubscribe;
+    }, [navigation, userData?.userID]);
 
     // Gestion de la réponse
     const handleAnswer = (answerIndex) => {
@@ -127,23 +118,93 @@ export default function QuizScreen({ navigation }) {
         }, 1500);
     };
 
+    // 🎯 Sauvegarder via API
+    const saveQuizToAPI = async (quizId, score, totalPoints, percentage) => {
+        try {
+            console.log('💾 Sauvegarde quiz via API...');
+
+            const response = await fetch('http://192.168.2.16:3000/quizz/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userData.userID,
+                    quizId: quizId,
+                    score: score,
+                    totalPoints: totalPoints,
+                    percentage: percentage,
+                    answers: [],
+                    completedAt: new Date().toISOString()
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.result) {
+                console.log('✅ Quiz sauvegardé en base avec succès');
+                return data;
+            } else {
+                console.error('❌ Erreur sauvegarde quiz:', data.error);
+            }
+        } catch (error) {
+            console.error('❌ Erreur API sauvegarde quiz:', error);
+        }
+    };
+
+    // 🎯 CALCUL DU SCORE TOTAL UTILISATEUR (POINTS OBTENUS)
+    const calculateUserTotalScore = () => {
+        const completedQuizzes = userData?.completedQuizzes || {};
+        return Object.values(completedQuizzes).reduce((total, quiz) => {
+            return total + (quiz.score || 0);
+        }, 0);
+    };
+
+    // 🎯 FONCTION POUR DÉTERMINER LA COULEUR DE LA CARTE
+    const getCardStyle = (percentage) => {
+        if (percentage === 100) {
+            return { borderColor: '#4CAF50', backgroundColor: 'rgba(76, 175, 80, 0.1)' }; // Vert
+        } else if (percentage >= 70) {
+            return { borderColor: '#FF9800', backgroundColor: 'rgba(255, 152, 0, 0.1)' }; // Jaune/Orange
+        } else {
+            return { borderColor: '#F44336', backgroundColor: 'rgba(244, 67, 54, 0.1)' }; // Rouge
+        }
+    };
+
+    // 🎯 FONCTION POUR DÉTERMINER L'EMOJI DE PERFORMANCE
+    const getPerformanceEmoji = (percentage) => {
+        if (percentage === 100) return '🏆'; // Parfait
+        if (percentage >= 70) return '⭐'; // Bien
+        return '💪'; // À améliorer
+    };
+
     // Finaliser le quiz
-    const completeQuiz = () => {
+    const completeQuiz = async () => {
         const totalPoints = selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0);
         const percentage = Math.round((quizScore / totalPoints) * 100);
+        const quizId = selectedQuiz._id?.$oid || selectedQuiz._id;
 
-        // Sauvegarder dans Redux
+        // Sauvegarder via API
+        await saveQuizToAPI(quizId, quizScore, totalPoints, percentage);
+
+        // 🎯 MISE À JOUR REDUX : Ajouter seulement les points obtenus (pas remplacer)
         const completedQuizzes = userData?.completedQuizzes || {};
-        const currentScore = userData?.score || 0;
+        const previousQuizData = completedQuizzes[quizId];
+        const previousScore = previousQuizData?.score || 0;
+
+        // Calculer le nouveau score total (ajouter seulement la différence)
+        const currentTotalScore = calculateUserTotalScore();
+        const scoreDifference = quizScore - previousScore;
+        const newTotalScore = currentTotalScore + scoreDifference;
 
         const updatedUserData = {
             ...userData,
-            score: currentScore + quizScore,
+            score: Math.max(newTotalScore, currentTotalScore), // Ne jamais diminuer le score
             completedQuizzes: {
                 ...completedQuizzes,
-                [selectedQuiz._id.$oid]: {
+                [quizId]: {
                     name: selectedQuiz.name,
-                    score: quizScore,
+                    score: quizScore, // Points obtenus dans ce quiz
                     totalPoints,
                     percentage,
                     badge: selectedQuiz.badgeDebloque,
@@ -157,12 +218,28 @@ export default function QuizScreen({ navigation }) {
             userData: updatedUserData
         }));
 
-        // 🏆 Vérifier les nouvelles récompenses !
-        const newRewards = RewardsService.checkAllRewards(updatedUserData);
-        if (newRewards.length > 0) {
-            RewardsService.applyRewards(newRewards);
-            setNewRewards(newRewards);
-            setShowRewardsNotification(true);
+        // 🏆 VÉRIFIER LES RÉCOMPENSES SEULEMENT SI >= 80%
+        if (percentage >= 80) {
+            console.log(`🎉 Score suffisant (${percentage}%) pour débloquer des récompenses !`);
+            const newRewards = RewardsService.checkAllRewards(updatedUserData);
+            if (newRewards.length > 0) {
+                // 🎯 Filtrer les titres spéciaux (seulement à 100%)
+                const filteredRewards = newRewards.filter(reward => {
+                    if (reward.type === 'title' && percentage < 100) {
+                        console.log(`🚫 Titre "${reward.title}" non débloqué (besoin de 100%, obtenu ${percentage}%)`);
+                        return false;
+                    }
+                    return true;
+                });
+
+                if (filteredRewards.length > 0) {
+                    RewardsService.applyRewards(filteredRewards);
+                    setNewRewards(filteredRewards);
+                    setShowRewardsNotification(true);
+                }
+            }
+        } else {
+            console.log(`❌ Score insuffisant (${percentage}%) pour débloquer des récompenses (minimum 80%)`);
         }
 
         setShowResults(true);
@@ -178,16 +255,20 @@ export default function QuizScreen({ navigation }) {
         setSelectedAnswerIndex(null);
         setNewRewards([]);
         setShowRewardsNotification(false);
+
+        // Recharger les quiz pour mettre à jour le statut "complété"
+        fetchUnlockedQuizzes();
     };
 
     // Démarrer un quiz
     const startQuiz = (quiz) => {
-        const isCompleted = userData?.completedQuizzes?.[quiz._id.$oid];
+        const quizId = quiz._id?.$oid || quiz._id;
+        const isCompleted = userData?.completedQuizzes?.[quizId];
 
         if (isCompleted) {
             Alert.alert(
                 'Quiz déjà terminé',
-                `Tu as déjà complété ce quiz avec ${isCompleted.score}/${isCompleted.totalPoints} points. Veux-tu le refaire ?`,
+                `Tu as déjà complété ce quiz avec ${isCompleted.score}/${isCompleted.totalPoints} points (${isCompleted.percentage}%). Veux-tu le refaire ?`,
                 [
                     { text: 'Non', style: 'cancel' },
                     { text: 'Oui', onPress: () => initializeQuiz(quiz) }
@@ -206,6 +287,26 @@ export default function QuizScreen({ navigation }) {
         setShowResults(false);
         setShowModal(true);
     };
+
+    // 🎯 AFFICHAGE DE CHARGEMENT
+    if (loading) {
+        return (
+            <LinearGradient
+                colors={['#eeddfd', '#d5c3f3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.generalContainer}
+            >
+                <SafeAreaView />
+                <BlurView intensity={50} style={styles.glass}>
+                    <View style={styles.emptyState}>
+                        <ActivityIndicator size="large" color="#85CAE4" />
+                        <Text style={styles.message}>Chargement des quiz...</Text>
+                    </View>
+                </BlurView>
+            </LinearGradient>
+        );
+    }
 
     return (
         <LinearGradient
@@ -231,12 +332,20 @@ export default function QuizScreen({ navigation }) {
                     <ScrollView style={{ width: '100%' }} contentContainerStyle={styles.scrollContent}>
                         <Text style={styles.title}>🎯 À TOI DE JOUER</Text>
                         <Text style={styles.subtitle}>
-                            Score total: {userData?.score || 0} points
+                            🏆 Score total: {calculateUserTotalScore()} points
+                        </Text>
+                        <Text style={styles.subtitle}>
+                            🔓 {unlockedQuizzes.length} quiz débloqués
                         </Text>
 
                         {unlockedQuizzes.map((quiz, index) => {
-                            const isCompleted = userData?.completedQuizzes?.[quiz._id.$oid];
-                            const totalPoints = quiz.quiz.reduce((acc, q) => acc + q.points, 0);
+                            const quizId = quiz._id?.$oid || quiz._id;
+                            const completedData = userData?.completedQuizzes?.[quizId];
+                            const isCompleted = !!completedData;
+                            const totalPoints = quiz.quiz ? quiz.quiz.reduce((acc, q) => acc + q.points, 0) : 0;
+
+                            // 🎯 Style de carte basé sur la performance
+                            const cardPerformanceStyle = isCompleted ? getCardStyle(completedData.percentage) : {};
 
                             return (
                                 <TouchableOpacity
@@ -244,21 +353,40 @@ export default function QuizScreen({ navigation }) {
                                     onPress={() => startQuiz(quiz)}
                                     style={[
                                         styles.card,
-                                        isCompleted && styles.completedCard
+                                        cardPerformanceStyle
                                     ]}
                                 >
                                     <View style={styles.cardHeader}>
                                         <Text style={styles.quizTitle}>{quiz.name}</Text>
-                                        {isCompleted && <Text style={styles.completedBadge}>✅</Text>}
+                                        {isCompleted && (
+                                            <Text style={styles.completedBadge}>
+                                                {getPerformanceEmoji(completedData.percentage)}
+                                            </Text>
+                                        )}
                                     </View>
+                                    <Text style={styles.quizDesc}>📍 {quiz.arrondissement}</Text>
                                     <Text style={styles.quizDesc}>🏅 {quiz.badgeDebloque}</Text>
                                     <Text style={styles.quizPoints}>
                                         Points disponibles: {totalPoints}
                                     </Text>
                                     {isCompleted && (
-                                        <Text style={styles.completedScore}>
-                                            Ton score: {isCompleted.score}/{isCompleted.totalPoints} ({isCompleted.percentage}%)
-                                        </Text>
+                                        <>
+                                            <Text style={[
+                                                styles.completedScore,
+                                                {
+                                                    color: completedData.percentage === 100 ? '#4CAF50' :
+                                                        completedData.percentage >= 70 ? '#FF9800' : '#F44336'
+                                                }
+                                            ]}>
+                                                {getPerformanceEmoji(completedData.percentage)} Ton score: {completedData.score}/{completedData.totalPoints} ({completedData.percentage}%)
+                                            </Text>
+                                            <Text style={styles.performanceText}>
+                                                {completedData.percentage === 100 ? '🏆 Parfait !' :
+                                                    completedData.percentage >= 80 ? '⭐ Excellent !' :
+                                                        completedData.percentage >= 70 ? '👍 Bien joué !' :
+                                                            '💪 Tu peux mieux faire !'}
+                                            </Text>
+                                        </>
                                     )}
                                 </TouchableOpacity>
                             );
@@ -311,15 +439,40 @@ export default function QuizScreen({ navigation }) {
                                     </>
                                 ) : null
                             ) : (
-                                // Écran de résultats
+                                // 🎯 ÉCRAN DE RÉSULTATS AMÉLIORÉ
                                 <View style={styles.resultsContainer}>
                                     <Text style={styles.resultsTitle}>🎉 Quiz terminé !</Text>
                                     <Text style={styles.resultsScore}>
                                         Score: {quizScore}/{selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)}
                                     </Text>
-                                    <Text style={styles.resultsBadge}>
-                                        🏅 Badge débloqué: {selectedQuiz.badgeDebloque}
+                                    <Text style={styles.resultsPercentage}>
+                                        {Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100)}%
                                     </Text>
+
+                                    {/* 🎯 MESSAGE BASÉ SUR LA PERFORMANCE */}
+                                    {(() => {
+                                        const percentage = Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100);
+                                        if (percentage === 100) {
+                                            return (
+                                                <>
+                                                    <Text style={styles.perfectMessage}>🏆 PARFAIT ! Tous les rewards débloqués !</Text>
+                                                    <Text style={styles.resultsBadge}>🏅 Badge + Titre: {selectedQuiz.badgeDebloque}</Text>
+                                                </>
+                                            );
+                                        } else if (percentage >= 80) {
+                                            return (
+                                                <>
+                                                    <Text style={styles.excellentMessage}>⭐ Excellent ! Rewards débloqués !</Text>
+                                                    <Text style={styles.resultsBadge}>🏅 Badge: {selectedQuiz.badgeDebloque}</Text>
+                                                </>
+                                            );
+                                        } else if (percentage >= 70) {
+                                            return <Text style={styles.goodMessage}>👍 Bien joué ! Pas de reward cette fois.</Text>;
+                                        } else {
+                                            return <Text style={styles.tryAgainMessage}>💪 Tu peux mieux faire ! Réessaie pour débloquer des rewards !</Text>;
+                                        }
+                                    })()}
+
                                     <TouchableOpacity
                                         style={styles.closeButton}
                                         onPress={closeQuiz}
@@ -390,7 +543,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#4a3b79',
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: 10,
         fontWeight: '600',
     },
     scrollContent: {
@@ -403,10 +556,6 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         borderWidth: 2,
         borderColor: 'transparent',
-    },
-    completedCard: {
-        borderColor: '#4CAF50',
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
     },
     cardHeader: {
         flexDirection: 'row',
@@ -421,7 +570,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     completedBadge: {
-        fontSize: 20,
+        fontSize: 24,
     },
     quizDesc: {
         fontSize: 14,
@@ -435,9 +584,14 @@ const styles = StyleSheet.create({
     },
     completedScore: {
         fontSize: 14,
-        color: '#4CAF50',
         fontWeight: '600',
         marginTop: 5,
+    },
+    performanceText: {
+        fontSize: 12,
+        fontWeight: '500',
+        marginTop: 3,
+        color: '#666',
     },
     modalContainer: {
         flex: 1,
@@ -530,6 +684,40 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '600',
         color: '#85CAE4',
+        marginBottom: 10,
+    },
+    resultsPercentage: {
+        fontSize: 32,
+        fontWeight: '700',
+        color: '#3a2e6b',
+        marginBottom: 20,
+    },
+    perfectMessage: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#4CAF50',
+        textAlign: 'center',
+        marginBottom: 15,
+    },
+    excellentMessage: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FF9800',
+        textAlign: 'center',
+        marginBottom: 15,
+    },
+    goodMessage: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#2196F3',
+        textAlign: 'center',
+        marginBottom: 15,
+    },
+    tryAgainMessage: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#F44336',
+        textAlign: 'center',
         marginBottom: 15,
     },
     resultsBadge: {
