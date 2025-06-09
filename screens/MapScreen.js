@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateUser } from '../redux/userSlice';
 
 export default function MapScreen() {
+  const URL = process.env.EXPO_PUBLIC_BACKEND_URL
   const dispatch = useDispatch();
   const { userData, isLoggedIn } = useSelector((state) => state.user);
 
@@ -39,7 +40,7 @@ export default function MapScreen() {
       console.log('📡 Récupération des quiz depuis l\'API...');
 
       // ⚠️ REMPLACE PAR TON IP !
-      const response = await fetch('http://192.168.2.16:3000/api/quizz', {
+      const response = await fetch(`${URL}/quizz`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export default function MapScreen() {
     }
   ];
 
-  const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
+  const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {// Haversine formula to calculate distance between two coordinates
     const R = 6371e3;
     const toRad = (x) => (x * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
