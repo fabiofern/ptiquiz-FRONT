@@ -8,6 +8,8 @@ import { BlurView } from 'expo-blur';
 import { useDispatch, useSelector } from 'react-redux';
 import { resetUser } from '../redux/userSlice';
 import { RewardsService, MEDALS, TROPHIES, TITLES } from '../services/RewardsService';
+import { Modal } from 'react-native'; // si pas déjà importé
+import LocationDebugComponent from '../components/LocationDebugComponent';
 
 export default function ProfileScreen({ navigation }) {
     const URL = process.env.EXPO_PUBLIC_BACKEND_URL
@@ -442,7 +444,15 @@ export default function ProfileScreen({ navigation }) {
                             );
                         })}
                     </BlurView>
-
+                    {/* BOUTON DEBUG - UNIQUEMENT EN DÉVELOPPEMENT */}
+                    {__DEV__ && (
+                        <TouchableOpacity
+                            style={styles.debugButton}
+                            onPress={() => setShowDebugModal(true)}
+                        >
+                            <Text style={styles.debugButtonText}>🔧 Debug Géolocalisation</Text>
+                        </TouchableOpacity>
+                    )}
                     {/* Bouton déconnexion */}
                     <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <Text style={styles.logoutText}>Déconnexion</Text>
