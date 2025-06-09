@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     StyleSheet, View, SafeAreaView, Text, TouchableOpacity,
     ScrollView, Image, Alert
@@ -12,6 +12,15 @@ import { RewardsService, MEDALS, TROPHIES, TITLES } from '../services/RewardsSer
 export default function ProfileScreen({ navigation }) {
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // 🎯 Forcer le rafraîchissement quand on focus sur l'écran
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            setRefreshKey(prev => prev + 1);
+        });
+        return unsubscribe;
+    }, [navigation]);
 
     if (!isLoggedIn || !userData) {
         return (
@@ -27,25 +36,61 @@ export default function ProfileScreen({ navigation }) {
             </LinearGradient>
         );
     }
+
     const avatarImages = {
         'avatar1': require('../assets/avatars/avatar01.png'),
         'avatar2': require('../assets/avatars/avatar02.png'),
         'avatar3': require('../assets/avatars/avatar03.png'),
-        // 'avatar4': require('../assets/avatars/avatar4.png'),
-        // 'avatar5': require('../assets/avatars/avatar5.png'),
-        // 'avatar6': require('../assets/avatars/avatar6.png'),
+        // Ajoutez d'autres avatars selon vos besoins
     };
-    // Statistiques
+
+    // 🎯 CALCUL DU SCORE TOTAL RÉEL (points obtenus, pas total possible)
+    const calculateUserTotalScore = () => {
+        const completedQuizzes = userData?.completedQuizzes || {};
+        return Object.values(completedQuizzes).reduce((total, quiz) => {
+            return total + (quiz.score || 0);
+        }, 0);
+    };
+
+    // 🎯 STATISTIQUES MISES À JOUR
     const stats = {
         totalQuizzes: Object.keys(userData.completedQuizzes || {}).length,
         perfectQuizzes: Object.values(userData.completedQuizzes || {})
             .filter(quiz => quiz.percentage === 100).length,
-        totalScore: userData.score || 0,
+        excellentQuizzes: Object.values(userData.completedQuizzes || {})
+            .filter(quiz => quiz.percentage >= 80 && quiz.percentage < 100).length,
+        totalScore: calculateUserTotalScore(), // 🎯 Score réel obtenu
+        averageScore: Object.keys(userData.completedQuizzes || {}).length > 0
+            ? Math.round(Object.values(userData.completedQuizzes || {})
+                .reduce((sum, quiz) => sum + (quiz.percentage || 0), 0) /
+                Object.keys(userData.completedQuizzes || {}).length)
+            : 0,
         unlockedQuizzes: (userData.unlockedQuizzes || []).length,
         medals: (userData.rewards?.medals || []).length,
         trophies: (userData.rewards?.trophies || []).length,
         titles: (userData.rewards?.titles || []).length
     };
+
+    // 🎯 RANG BASÉ SUR LE SCORE ET LES PERFORMANCES
+    const getUserRank = () => {
+        const { perfectQuizzes, totalQuizzes, averageScore } = stats;
+
+        if (perfectQuizzes >= 10 && averageScore >= 95) {
+            return { rank: 'Maître Suprême', icon: '👑', color: '#FFD700' };
+        } else if (perfectQuizzes >= 5 && averageScore >= 90) {
+            return { rank: 'Expert', icon: '🏆', color: '#C0C0C0' };
+        } else if (totalQuizzes >= 10 && averageScore >= 80) {
+            return { rank: 'Avancé', icon: '⭐', color: '#CD7F32' };
+        } else if (totalQuizzes >= 5 && averageScore >= 70) {
+            return { rank: 'Intermédiaire', icon: '🌟', color: '#4CAF50' };
+        } else if (totalQuizzes >= 3) {
+            return { rank: 'Novice', icon: '🌱', color: '#2196F3' };
+        } else {
+            return { rank: 'Débutant', icon: '🎯', color: '#9E9E9E' };
+        }
+    };
+
+    const userRank = getUserRank();
 
     // Titre actuel
     const currentTitle = RewardsService.getCurrentTitle(userData);
@@ -75,6 +120,14 @@ export default function ProfileScreen({ navigation }) {
         </View>
     );
 
+    // 🎯 PERFORMANCE PAR COULEUR
+    const getPerformanceColor = (percentage) => {
+        if (percentage === 100) return '#4CAF50'; // Vert
+        if (percentage >= 80) return '#FF9800'; // Orange
+        if (percentage >= 70) return '#2196F3'; // Bleu
+        return '#F44336'; // Rouge
+    };
+
     return (
         <LinearGradient
             colors={['#eeddfd', '#d5c3f3']}
@@ -85,13 +138,23 @@ export default function ProfileScreen({ navigation }) {
             <SafeAreaView style={styles.container}>
                 <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
 
-                    {/* En-tête profil */}
+                    {/* 🎯 EN-TÊTE PROFIL AMÉLIORÉ */}
                     <BlurView intensity={50} style={styles.profileHeader}>
                         <View style={styles.avatarContainer}>
                             <Image
                                 source={avatarImages[userData.avatar] || avatarImages['avatar1']}
                                 style={styles.avatar}
                             />
+
+                            {/* 🎯 Badge de rang */}
+                            <View style={[styles.rankBadge, { backgroundColor: userRank.color + '20' }]}>
+                                <Text style={styles.rankIcon}>{userRank.icon}</Text>
+                                <Text style={[styles.rankText, { color: userRank.color }]}>
+                                    {userRank.rank}
+                                </Text>
+                            </View>
+
+                            {/* Titre actuel */}
                             {currentTitle && (
                                 <View style={styles.titleBadge}>
                                     <Text style={styles.titleIcon}>{currentTitle.icon}</Text>
@@ -101,33 +164,86 @@ export default function ProfileScreen({ navigation }) {
                         </View>
                         <Text style={styles.username}>{userData.username}</Text>
                         <Text style={styles.email}>{userData.email}</Text>
-                        <Text style={styles.totalScore}>🏆 {stats.totalScore} points</Text>
+                        <Text style={styles.totalScore}>🏆 {stats.totalScore} points obtenus</Text>
+                        <Text style={styles.averageScore}>📊 Moyenne: {stats.averageScore}%</Text>
                     </BlurView>
 
-                    {/* Statistiques */}
+                    {/* 🎯 STATISTIQUES DÉTAILLÉES */}
                     <BlurView intensity={50} style={styles.statsContainer}>
-                        <Text style={styles.sectionTitle}>📊 STATISTIQUES</Text>
+                        <Text style={styles.sectionTitle}>📊 STATISTIQUES DÉTAILLÉES</Text>
                         <View style={styles.statsGrid}>
                             <View style={styles.statItem}>
                                 <Text style={styles.statNumber}>{stats.totalQuizzes}</Text>
                                 <Text style={styles.statLabel}>Quiz terminés</Text>
                             </View>
                             <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>{stats.perfectQuizzes}</Text>
-                                <Text style={styles.statLabel}>Quiz parfaits</Text>
+                                <Text style={[styles.statNumber, { color: '#4CAF50' }]}>
+                                    {stats.perfectQuizzes}
+                                </Text>
+                                <Text style={styles.statLabel}>Quiz parfaits (100%)</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={[styles.statNumber, { color: '#FF9800' }]}>
+                                    {stats.excellentQuizzes}
+                                </Text>
+                                <Text style={styles.statLabel}>Quiz excellents (80-99%)</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={[styles.statNumber, { color: '#2196F3' }]}>
+                                    {stats.averageScore}%
+                                </Text>
+                                <Text style={styles.statLabel}>Score moyen</Text>
                             </View>
                             <View style={styles.statItem}>
                                 <Text style={styles.statNumber}>{stats.unlockedQuizzes}</Text>
                                 <Text style={styles.statLabel}>Quiz débloqués</Text>
                             </View>
                             <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>
+                                <Text style={[styles.statNumber, { color: '#9C27B0' }]}>
                                     {stats.medals + stats.trophies + stats.titles}
                                 </Text>
                                 <Text style={styles.statLabel}>Récompenses</Text>
                             </View>
                         </View>
                     </BlurView>
+
+                    {/* 🎯 HISTORIQUE DES QUIZ RÉCENTS */}
+                    {Object.keys(userData.completedQuizzes || {}).length > 0 && (
+                        <BlurView intensity={50} style={styles.recentQuizzesContainer}>
+                            <Text style={styles.sectionTitle}>📚 QUIZ RÉCENTS</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                <View style={styles.recentQuizzesRow}>
+                                    {Object.values(userData.completedQuizzes || {})
+                                        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+                                        .slice(0, 5)
+                                        .map((quiz, index) => (
+                                            <View key={index} style={styles.recentQuizItem}>
+                                                <View style={[
+                                                    styles.performanceIndicator,
+                                                    { backgroundColor: getPerformanceColor(quiz.percentage) }
+                                                ]}>
+                                                    <Text style={styles.performancePercentage}>
+                                                        {quiz.percentage}%
+                                                    </Text>
+                                                </View>
+                                                <Text style={styles.recentQuizName} numberOfLines={2}>
+                                                    {quiz.name}
+                                                </Text>
+                                                <Text style={styles.recentQuizScore}>
+                                                    {quiz.score}/{quiz.totalPoints} pts
+                                                </Text>
+                                                <Text style={styles.recentQuizBadge}>
+                                                    {quiz.percentage === 100 ? '🏆' :
+                                                        quiz.percentage >= 80 ? '⭐' :
+                                                            quiz.percentage >= 70 ? '👍' : '💪'}
+                                                </Text>
+                                            </View>
+                                        ))
+                                    }
+                                </View>
+                            </ScrollView>
+                        </BlurView>
+                    )}
 
                     {/* Prochaine récompense */}
                     {nextReward && (
@@ -167,7 +283,7 @@ export default function ProfileScreen({ navigation }) {
                             </ScrollView>
                         ) : (
                             <Text style={styles.noRewardsText}>
-                                Réussis 5 quiz parfaits d'un même thème pour débloquer ta première médaille !
+                                Réussis 5 quiz avec au moins 80% dans un même thème pour débloquer ta première médaille !
                             </Text>
                         )}
                     </BlurView>
@@ -186,7 +302,7 @@ export default function ProfileScreen({ navigation }) {
                             </ScrollView>
                         ) : (
                             <Text style={styles.noRewardsText}>
-                                Termine tous les quiz d'un thème dans une ville pour gagner une coupe !
+                                Termine tous les quiz d'un thème dans une ville avec au moins 80% pour gagner une coupe !
                             </Text>
                         )}
                     </BlurView>
@@ -221,7 +337,7 @@ export default function ProfileScreen({ navigation }) {
                             </View>
                         ) : (
                             <Text style={styles.noRewardsText}>
-                                Accomplis des exploits extraordinaires pour débloquer des titres prestigieux !
+                                Accomplis des exploits extraordinaires avec 100% pour débloquer des titres prestigieux !
                             </Text>
                         )}
                     </BlurView>
@@ -231,7 +347,7 @@ export default function ProfileScreen({ navigation }) {
                         <Text style={styles.sectionTitle}>🎁 TOUTES LES RÉCOMPENSES</Text>
 
                         {/* Médailles disponibles */}
-                        <Text style={styles.subSectionTitle}>Médailles à débloquer:</Text>
+                        <Text style={styles.subSectionTitle}>Médailles à débloquer (80%+ requis):</Text>
                         {Object.values(MEDALS).map(medal => {
                             const isUnlocked = (userData.rewards?.medals || []).includes(medal.id);
                             return (
@@ -261,7 +377,7 @@ export default function ProfileScreen({ navigation }) {
                         })}
 
                         {/* Coupes disponibles */}
-                        <Text style={styles.subSectionTitle}>Coupes à débloquer:</Text>
+                        <Text style={styles.subSectionTitle}>Coupes à débloquer (80%+ requis):</Text>
                         {Object.values(TROPHIES).map(trophy => {
                             const isUnlocked = (userData.rewards?.trophies || []).includes(trophy.id);
                             return (
@@ -291,7 +407,7 @@ export default function ProfileScreen({ navigation }) {
                         })}
 
                         {/* Titres disponibles */}
-                        <Text style={styles.subSectionTitle}>Titres à débloquer:</Text>
+                        <Text style={styles.subSectionTitle}>Titres à débloquer (100% requis):</Text>
                         {Object.values(TITLES).map(title => {
                             const isUnlocked = (userData.rewards?.titles || []).includes(title.id);
                             return (
@@ -381,6 +497,24 @@ const styles = StyleSheet.create({
         borderWidth: 4,
         borderColor: '#fb7a68',
     },
+    rankBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    rankIcon: {
+        fontSize: 16,
+        marginRight: 6,
+    },
+    rankText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
     titleBadge: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -388,7 +522,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 15,
-        marginTop: 10,
+        marginTop: 5,
     },
     titleIcon: {
         fontSize: 16,
@@ -408,12 +542,68 @@ const styles = StyleSheet.create({
     email: {
         fontSize: 16,
         color: '#666',
-        marginBottom: 10,
+        marginBottom: 8,
     },
     totalScore: {
         fontSize: 20,
         fontWeight: '600',
         color: '#fb7a68',
+        marginBottom: 5,
+    },
+    averageScore: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#4a3b79',
+    },
+
+    // Quiz récents
+    recentQuizzesContainer: {
+        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    recentQuizzesRow: {
+        flexDirection: 'row',
+        paddingHorizontal: 5,
+    },
+    recentQuizItem: {
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        borderRadius: 15,
+        padding: 15,
+        marginRight: 15,
+        alignItems: 'center',
+        minWidth: 120,
+    },
+    performanceIndicator: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    performancePercentage: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    recentQuizName: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#2c1d53',
+        textAlign: 'center',
+        marginBottom: 5,
+    },
+    recentQuizScore: {
+        fontSize: 11,
+        color: '#666',
+        marginBottom: 5,
+    },
+    recentQuizBadge: {
+        fontSize: 16,
     },
 
     // Statistiques
