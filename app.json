@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Cette app utilise votre position pour débloquer des quiz près de vous !",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette app utilise votre position pour débloquer des quiz près de vous !"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +25,22 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.expojsstarter"
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cette app utilise votre position pour débloquer des quiz près de vous !"
+        }
+      ]
     ]
   }
 }

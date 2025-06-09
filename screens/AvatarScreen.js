@@ -15,12 +15,19 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useDispatch, useSelector } from "react-redux"; // ← Ajout useSelector
+import { updateUser } from "../redux/userSlice"; // ← IMPORT MANQUANT !
 
 SplashScreen.preventAutoHideAsync();
 
 const { width } = Dimensions.get("window");
 
-export default function AvatarScreen() {
+export default function AvatarScreen({ navigation }) {
+    const dispatch = useDispatch();
+
+    // ← Récupérer les données existantes du store
+    const userData = useSelector(state => state.user.userData);
+
     const [loaded] = useFonts({
         "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
     });
@@ -44,9 +51,22 @@ export default function AvatarScreen() {
         if (!selectedAvatar || signUpUsername.trim() === "") {
             alert("Choisis un avatar et un pseudo !");
             return;
+        } else {
+            console.log("Pseudo :", signUpUsername);
+            console.log("Avatar sélectionné :", selectedAvatar);
+
+            // ✅ CORRIGÉ : Structure correcte avec spread
+            dispatch(updateUser({
+                isLoggedIn: true,
+                userData: {
+                    ...userData, // Maintenant userData existe !
+                    avatar: selectedAvatar,
+                    username: signUpUsername.trim()
+                }
+            }));
+
+            navigation.navigate('Map');
         }
-        console.log("Pseudo :", signUpUsername);
-        console.log("Avatar sélectionné :", selectedAvatar);
     };
 
     return (
@@ -89,7 +109,6 @@ export default function AvatarScreen() {
                 <Text style={styles.textButton}>C'est parti !</Text>
             </TouchableOpacity>
         </LinearGradient>
-
     );
 }
 
@@ -175,11 +194,9 @@ const styles = StyleSheet.create({
         margin: 15,
         borderRadius: 33,
         shadowColor: '#000',
-        shadowOffset: { width: 6, height: 4 }, // ➡️ vers la droite
+        shadowOffset: { width: 6, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
-
-        // ✅ Android (ombre plus forte aussi)
         elevation: 10,
     },
     textButton: {
@@ -188,7 +205,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         alignContent: 'flex-end',
         justifyContent: 'center',
-        color: "",
+        color: "#333",
         padding: 10,
     },
 });

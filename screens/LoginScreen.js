@@ -1,23 +1,23 @@
-import React, { useState } from "react";
 import { StyleSheet, View, SafeAreaView, Button, TextInput, Text, Modal, TouchableOpacity, Image } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { addUserToStore } from '../reducers/users';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { checkBody } from '../modules/checkBody';
 import { BlurView } from 'expo-blur';
+import { useState } from "react";
+import { useDispatch, useSelector } from 'react-redux';
+import { updateUser } from '../redux/userSlice';
 
 SplashScreen.preventAutoHideAsync();
 
-
-
 const URL = process.env.EXPO_PUBLIC_BACKEND_URL
 
-
 export default function LoginScreen({ navigation }) {
+
+    // Redux
+    const dispatch = useDispatch();
+    const { loading, isLoggedIn } = useSelector((state) => state.user);
 
     const [loaded] = useFonts({
         "Fustat-Bold.ttf": require("../assets/fonts/Fustat-Bold.ttf"),
@@ -32,22 +32,17 @@ export default function LoginScreen({ navigation }) {
     });
 
     useEffect(() => {
-        // cacher l'écran de démarrage si la police est chargée ou s'il y a une erreur
         if (loaded) {
             SplashScreen.hideAsync();
         }
     }, [loaded]);
 
-    // Retourner null tant que la police n'est pas chargée
-
-    const dispatch = useDispatch();
     const [showPasswordConnection, setShowPasswordConnection] = useState(true);
     const [showPassword, setShowPassword] = useState(true);
     const [showPassword2, setShowPassword2] = useState(true);
 
     const [modalSignUp, setmodalSignUp] = useState(false);
     const [modalLogIn, setmodalLogIn] = useState(false);
-
 
     const [signUpPassword, setSignUpPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -67,7 +62,6 @@ export default function LoginScreen({ navigation }) {
 
         if (!pattern.test(email.trim())) {
             setcheckEmail(true);
-            // alert("Veuillez entrer un email valide.");
             return;
         }
 
@@ -81,6 +75,9 @@ export default function LoginScreen({ navigation }) {
             return;
         }
 
+        // Démarrer le loading
+        dispatch(updateUser({ loading: true }));
+
         fetch(`${URL}/users/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -89,7 +86,17 @@ export default function LoginScreen({ navigation }) {
             .then(response => response.json())
             .then(data => {
                 if (data.result) {
-                    dispatch(addUserToStore({ token: data.token, userID: data._id }));
+                    // Sauvegarder dans Redux
+                    dispatch(updateUser({
+                        loading: false,
+                        isLoggedIn: true,
+                        userData: {
+                            token: data.token,
+                            userID: data._id,
+                            email: email.trim().toLowerCase()
+                        }
+                    }));
+
                     console.log(data._id)
                     setSignUpPassword('');
                     setEmail('');
@@ -97,12 +104,15 @@ export default function LoginScreen({ navigation }) {
                     console.log("Inscription réussie :", email);
                     navigation.navigate('Avatar');
                 } else {
+                    dispatch(updateUser({ loading: false }));
                     alert('utilisateur deja present');
                 }
             })
-            .catch(error => console.error("LoginScreen : Erreur lors de l'inscription :", error));
+            .catch(error => {
+                dispatch(updateUser({ loading: false }));
+                console.error("LoginScreen : Erreur lors de l'inscription :", error);
+            });
     }
-
 
     function mailcheck(value) {
         setEmail(value);
@@ -117,6 +127,9 @@ export default function LoginScreen({ navigation }) {
             return;
         }
 
+        // Démarrer le loading
+        dispatch(updateUser({ loading: true }));
+
         fetch(`${URL}/users/signin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -125,21 +138,36 @@ export default function LoginScreen({ navigation }) {
             .then(response => response.json())
             .then(data => {
                 if (data.result) {
-                    dispatch(addUserToStore({ token: data.token, avatar: data.avatar, username: data.username, userID: data._id }));
+                    // Sauvegarder dans Redux
+                    dispatch(updateUser({
+                        loading: false,
+                        isLoggedIn: true,
+                        userData: {
+                            token: data.token,
+                            avatar: data.avatar,
+                            username: data.username,
+                            userID: data._id,
+                            email: email.trim().toLowerCase()
+                        }
+                    }));
+
                     setEmail('');
                     setLogInPassword('');
                     setmodalLogIn(false);
                     console.log("Connexion réussie :", email);
                     navigation.navigate('Map');
                 } else {
-                    alert('Nom d’utilisateur ou mot de passe incorrect.');
+                    dispatch(updateUser({ loading: false }));
+                    alert("Nom d'utilisateur ou mot de passe incorrect.");
                 }
             })
-            .catch(error => console.error("Erreur de connexion :", error));
+            .catch(error => {
+                dispatch(updateUser({ loading: false }));
+                console.error("Erreur de connexion :", error);
+            });
     };
 
     return (
-
         <View style={styles.generalContainer}>
             <LinearGradient
                 colors={['#eeddfd', '#d5c3f3']}
@@ -157,6 +185,11 @@ export default function LoginScreen({ navigation }) {
                         <TouchableOpacity style={styles.button} onPress={() => setmodalSignUp(true)}>
                             <Text style={styles.textButton}>S'inscrire</Text>
                         </TouchableOpacity>
+
+                        {/* Debug Redux - Tu peux supprimer après */}
+                        <Text style={{ textAlign: 'center', marginTop: 20, color: '#666' }}>
+                            État: {isLoggedIn ? 'Connecté' : 'Déconnecté'}
+                        </Text>
                     </View>
                 )}
 
@@ -187,8 +220,15 @@ export default function LoginScreen({ navigation }) {
                                         <FontAwesome name={showPasswordConnection ? 'eye' : 'eye-slash'} color={'#636773'} size={20} paddingRight={20} />
                                     </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity style={[styles.button]} onPress={logIN} activeOpacity={0.8}>
-                                    <Text style={[styles.textButton]}>Se connecter</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, loading && { opacity: 0.5 }]}
+                                    onPress={logIN}
+                                    activeOpacity={0.8}
+                                    disabled={loading}
+                                >
+                                    <Text style={[styles.textButton]}>
+                                        {loading ? 'Connexion...' : 'Se connecter'}
+                                    </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={() => setmodalLogIn(false)} activeOpacity={0.8}>
                                     <Text style={styles.textButton}>Fermer</Text>
@@ -196,66 +236,68 @@ export default function LoginScreen({ navigation }) {
                             </BlurView>
                         </View>
                     </Modal>
-                )
-                }
+                )}
 
-                {
-                    modalSignUp && (
-                        <Modal visible={modalSignUp} animationType="slide" transparent>
-                            <View style={styles.centeredView}>
-                                <BlurView intensity={50} tint="light" style={styles.glass}>
-                                    {/* <View style={styles.modalViewsignup}> */}
-                                    <Text style={{ fontFamily: "Fustat-SemiBold.ttf", fontSize: 35, paddingBottom: 50, color: '#fb7a68' }}>Inscription</Text>
+                {modalSignUp && (
+                    <Modal visible={modalSignUp} animationType="slide" transparent>
+                        <View style={styles.centeredView}>
+                            <BlurView intensity={50} tint="light" style={styles.glass}>
+                                <Text style={{ fontFamily: "Fustat-SemiBold.ttf", fontSize: 35, paddingBottom: 50, color: '#fb7a68' }}>Inscription</Text>
+                                <TextInput
+                                    placeholderTextColor={'#636773'}
+                                    fontSize={15}
+                                    style={styles.inp1}
+                                    placeholder="Email"
+                                    onChangeText={mailcheck}
+                                    value={email}
+                                />
+                                {checkEmail && <Text>Email invalide</Text>}
+
+                                <View style={styles.inp1}>
                                     <TextInput
                                         placeholderTextColor={'#636773'}
-                                        fontSize={15}
-                                        style={styles.inp1}
-                                        placeholder="Email"
-                                        onChangeText={mailcheck}
-                                        value={email}
+                                        style={{ fontSize: 15 }}
+                                        placeholder="Mot de passe"
+                                        secureTextEntry={showPassword ? true : false}
+                                        onChangeText={setSignUpPassword}
+                                        value={signUpPassword}
                                     />
-                                    {checkEmail && <Text>Email invalide</Text>}
-
-                                    < View style={styles.inp1} >
-                                        <TextInput
-                                            placeholderTextColor={'#636773'}
-                                            style={{ fontSize: 15 }}
-                                            placeholder="Mot de passe"
-                                            secureTextEntry={showPassword ? true : false}
-                                            onChangeText={setSignUpPassword}
-                                            value={signUpPassword}
-                                        />
-                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                            <FontAwesome name={showPassword ? 'eye' : 'eye-slash'} color={'#636773'} size={20} paddingRight={12} />
-                                        </TouchableOpacity>
-                                    </View >
-                                    <View style={styles.inp1}>
-                                        <TextInput
-                                            placeholderTextColor={'#636773'}
-                                            style={{ fontSize: 15 }}
-                                            placeholder="Confirmer le mot de passe"
-                                            secureTextEntry={showPassword2 ? true : false}
-                                            onChangeText={setConfirmPassword}
-                                            value={confirmPassword}
-                                        />
-                                        <TouchableOpacity onPress={() => setShowPassword2(!showPassword2)}>
-                                            <FontAwesome name={showPassword2 ? 'eye' : 'eye-slash'} color={'#636773'} size={20} paddingRight={12} />
-                                        </TouchableOpacity>
-                                    </View>
-                                    <TouchableOpacity style={styles.button} onPress={signUP} activeOpacity={0.8}>
-                                        <Text style={styles.textButton}>S'inscrire</Text>
+                                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                        <FontAwesome name={showPassword ? 'eye' : 'eye-slash'} color={'#636773'} size={20} paddingRight={12} />
                                     </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => setmodalSignUp(false)} activeOpacity={0.8}>
-                                        <Text style={styles.textButton}>Fermer</Text>
+                                </View>
+                                <View style={styles.inp1}>
+                                    <TextInput
+                                        placeholderTextColor={'#636773'}
+                                        style={{ fontSize: 15 }}
+                                        placeholder="Confirmer le mot de passe"
+                                        secureTextEntry={showPassword2 ? true : false}
+                                        onChangeText={setConfirmPassword}
+                                        value={confirmPassword}
+                                    />
+                                    <TouchableOpacity onPress={() => setShowPassword2(!showPassword2)}>
+                                        <FontAwesome name={showPassword2 ? 'eye' : 'eye-slash'} color={'#636773'} size={20} paddingRight={12} />
                                     </TouchableOpacity>
-                                    {/* </View> */}
-                                </BlurView>
-                            </View>
-                        </Modal>
-                    )
-                }
+                                </View>
+                                <TouchableOpacity
+                                    style={[styles.button, loading && { opacity: 0.5 }]}
+                                    onPress={signUP}
+                                    activeOpacity={0.8}
+                                    disabled={loading}
+                                >
+                                    <Text style={styles.textButton}>
+                                        {loading ? 'Inscription...' : 'S\'inscrire'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => setmodalSignUp(false)} activeOpacity={0.8}>
+                                    <Text style={styles.textButton}>Fermer</Text>
+                                </TouchableOpacity>
+                            </BlurView>
+                        </View>
+                    </Modal>
+                )}
             </LinearGradient>
-        </View >
+        </View>
     );
 }
 
@@ -267,20 +309,14 @@ const styles = StyleSheet.create({
         padding: 20,
         borderRadius: 33,
         overflow: 'hidden',
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        backgroundColor: 'rgba(255, 255, 255, 0.)',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.3)',
-
-        // 🌫️ Flou
         overflow: 'hidden',
-
-        // ☁️ Ombre douce pour effet clay
         shadowColor: '#000',
-        shadowOffset: { width: 6, height: 4 }, // ➡️ vers la droite
+        shadowOffset: { width: 6, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
-
-        // Android
         elevation: 10,
     },
 
@@ -303,11 +339,9 @@ const styles = StyleSheet.create({
         margin: 15,
         borderRadius: 33,
         shadowColor: '#000',
-        shadowOffset: { width: 6, height: 4 }, // ➡️ vers la droite
+        shadowOffset: { width: 6, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,
-
-        // ✅ Android (ombre plus forte aussi)
         elevation: 10,
     },
     textButton: {
