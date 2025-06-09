@@ -6,6 +6,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider, useSelector } from 'react-redux';
 import { store, persistor } from './redux/store';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { View, Text, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 // Imports d'écrans
 import LoginScreen from './screens/LoginScreen';
@@ -18,30 +20,176 @@ import QuizScreen from './screens/QuizScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Navigation avec onglets (quand tout est configuré)
+// 🎨 COMPOSANT CUSTOM POUR LA TAB BAR
+const CustomTabBar = ({ state, descriptors, navigation }) => {
+	return (
+		<View style={{
+			position: 'absolute',
+			bottom: 25,
+			left: 20,
+			right: 20,
+			height: 70,
+			borderRadius: 25,
+			overflow: 'hidden',
+			// Ombre pour iOS
+			shadowColor: '#000',
+			shadowOffset: { width: 0, height: 10 },
+			shadowOpacity: 0.25,
+			shadowRadius: 20,
+			// Ombre pour Android
+			elevation: 15,
+		}}>
+			<BlurView
+				intensity={Platform.OS === 'ios' ? 80 : 50}
+				style={{
+					flex: 1,
+					flexDirection: 'row',
+					backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.9)',
+					borderWidth: 1,
+					borderColor: 'rgba(255, 255, 255, 0.3)',
+					borderRadius: 25,
+				}}
+			>
+				{state.routes.map((route, index) => {
+					const { options } = descriptors[route.key];
+					const label =
+						options.tabBarLabel !== undefined
+							? options.tabBarLabel
+							: options.title !== undefined
+								? options.title
+								: route.name;
+
+					const isFocused = state.index === index;
+
+					const onPress = () => {
+						const event = navigation.emit({
+							type: 'tabPress',
+							target: route.key,
+							canPreventDefault: true,
+						});
+
+						if (!isFocused && !event.defaultPrevented) {
+							navigation.navigate(route.name);
+						}
+					};
+
+					// 🎯 COULEURS ET ICÔNES
+					const getIconConfig = (routeName) => {
+						switch (routeName) {
+							case 'Map':
+								return {
+									icon: 'map-o',
+									activeColor: '#85CAE4',
+									activeGradient: ['#85CAE4', '#5BB3D8'],
+									label: 'Carte'
+								};
+							case 'Quiz':
+								return {
+									icon: 'gamepad',
+									activeColor: '#fb7a68',
+									activeGradient: ['#fb7a68', '#f06292'],
+									label: 'Quiz'
+								};
+							case 'Profile':
+								return {
+									icon: 'user',
+									activeColor: '#9C27B0',
+									activeGradient: ['#9C27B0', '#7B1FA2'],
+									label: 'Profil'
+								};
+							default:
+								return {
+									icon: 'circle',
+									activeColor: '#fb7a68',
+									activeGradient: ['#fb7a68', '#f06292'],
+									label: routeName
+								};
+						}
+					};
+
+					const iconConfig = getIconConfig(route.name);
+
+					return (
+						<View
+							key={route.key}
+							style={{
+								flex: 1,
+								alignItems: 'center',
+								justifyContent: 'center',
+								paddingVertical: 8,
+							}}
+							onTouchStart={onPress}
+						>
+							{/* 🌟 INDICATEUR ACTIF */}
+							{isFocused && (
+								<View style={{
+									position: 'absolute',
+									top: 6,
+									width: 40,
+									height: 3,
+									backgroundColor: iconConfig.activeColor,
+									borderRadius: 2,
+									shadowColor: iconConfig.activeColor,
+									shadowOffset: { width: 0, height: 0 },
+									shadowOpacity: 0.8,
+									shadowRadius: 4,
+									elevation: 5,
+								}} />
+							)}
+
+							{/* 🎯 BACKGROUND ACTIF */}
+							{isFocused && (
+								<View style={{
+									position: 'absolute',
+									width: 50,
+									height: 50,
+									borderRadius: 25,
+									backgroundColor: `${iconConfig.activeColor}15`,
+									borderWidth: 1,
+									borderColor: `${iconConfig.activeColor}30`,
+								}} />
+							)}
+
+							{/* 🔥 ICÔNE */}
+							<FontAwesome
+								name={iconConfig.icon}
+								size={isFocused ? 26 : 22}
+								color={isFocused ? iconConfig.activeColor : '#666'}
+								style={{
+									marginBottom: 2,
+									textShadowColor: isFocused ? iconConfig.activeColor : 'transparent',
+									textShadowOffset: { width: 0, height: 0 },
+									textShadowRadius: isFocused ? 8 : 0,
+								}}
+							/>
+
+							{/* 📝 LABEL */}
+							<Text style={{
+								fontSize: 11,
+								fontWeight: isFocused ? '700' : '500',
+								color: isFocused ? iconConfig.activeColor : '#666',
+								textShadowColor: isFocused ? iconConfig.activeColor : 'transparent',
+								textShadowOffset: { width: 0, height: 0 },
+								textShadowRadius: isFocused ? 4 : 0,
+							}}>
+								{iconConfig.label}
+							</Text>
+						</View>
+					);
+				})}
+			</BlurView>
+		</View>
+	);
+};
+
+// 🎨 NAVIGATION AVEC TAB BAR STYLÉE
 function MainTabNavigator() {
 	return (
 		<Tab.Navigator
+			tabBar={(props) => <CustomTabBar {...props} />}
 			screenOptions={{
 				headerShown: false,
-				tabBarActiveTintColor: '#fb7a68',
-				tabBarInactiveTintColor: '#999',
-				tabBarStyle: {
-					backgroundColor: '#ffffff',
-					borderTopWidth: 0,
-					elevation: 10,
-					shadowColor: '#000',
-					shadowOffset: { width: 0, height: -2 },
-					shadowOpacity: 0.1,
-					shadowRadius: 4,
-					height: 80,
-					paddingBottom: 10,
-					paddingTop: 10,
-				},
-				tabBarLabelStyle: {
-					fontSize: 12,
-					fontWeight: '600',
-				},
+				tabBarHideOnKeyboard: true,
 			}}
 		>
 			<Tab.Screen
@@ -49,9 +197,6 @@ function MainTabNavigator() {
 				component={MapScreen}
 				options={{
 					tabBarLabel: 'Carte',
-					tabBarIcon: ({ color, size }) => (
-						<FontAwesome name="map-o" size={size} color={color} />
-					),
 				}}
 			/>
 			<Tab.Screen
@@ -59,9 +204,6 @@ function MainTabNavigator() {
 				component={QuizScreen}
 				options={{
 					tabBarLabel: 'Quiz',
-					tabBarIcon: ({ color, size }) => (
-						<FontAwesome name="gamepad" size={size} color={color} />
-					),
 				}}
 			/>
 			<Tab.Screen
@@ -69,9 +211,6 @@ function MainTabNavigator() {
 				component={ProfileScreen}
 				options={{
 					tabBarLabel: 'Profil',
-					tabBarIcon: ({ color, size }) => (
-						<FontAwesome name="user" size={size} color={color} />
-					),
 				}}
 			/>
 		</Tab.Navigator>
