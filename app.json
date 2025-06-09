@@ -6,17 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Cette app utilise votre position pour débloquer des quiz près de vous !",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette app utilise votre position pour débloquer des quiz près de vous !"
+        "NSLocationWhenInUseUsageDescription": "Nous avons besoin de votre position pour débloquer des quiz à proximité.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Nous avons besoin de votre position pour débloquer des quiz à proximité même lorsque l'application est en arrière-plan."
       }
     },
     "android": {
@@ -34,13 +32,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Cette app utilise votre position pour débloquer des quiz près de vous !"
-        }
-      ]
+      "expo-font"
     ]
   }
 }

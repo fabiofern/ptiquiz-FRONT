@@ -27,7 +27,14 @@ export default function ProfileScreen({ navigation }) {
             </LinearGradient>
         );
     }
-
+    const avatarImages = {
+        'avatar1': require('../assets/avatars/avatar01.png'),
+        'avatar2': require('../assets/avatars/avatar02.png'),
+        'avatar3': require('../assets/avatars/avatar03.png'),
+        // 'avatar4': require('../assets/avatars/avatar4.png'),
+        // 'avatar5': require('../assets/avatars/avatar5.png'),
+        // 'avatar6': require('../assets/avatars/avatar6.png'),
+    };
     // Statistiques
     const stats = {
         totalQuizzes: Object.keys(userData.completedQuizzes || {}).length,
@@ -82,7 +89,7 @@ export default function ProfileScreen({ navigation }) {
                     <BlurView intensity={50} style={styles.profileHeader}>
                         <View style={styles.avatarContainer}>
                             <Image
-                                source={{ uri: userData.avatar }}
+                                source={avatarImages[userData.avatar] || avatarImages['avatar1']}
                                 style={styles.avatar}
                             />
                             {currentTitle && (

@@ -47,25 +47,52 @@ export default function AvatarScreen({ navigation }) {
         require("../assets/avatars/avatar03.png"),
     ];
 
-    const handleRegister = () => {
+    // Dans AvatarScreen.js - modifiez handleRegister :
+
+    const handleRegister = async () => {
         if (!selectedAvatar || signUpUsername.trim() === "") {
             alert("Choisis un avatar et un pseudo !");
             return;
-        } else {
-            console.log("Pseudo :", signUpUsername);
-            console.log("Avatar sélectionné :", selectedAvatar);
+        }
 
-            // ✅ CORRIGÉ : Structure correcte avec spread
-            dispatch(updateUser({
-                isLoggedIn: true,
-                userData: {
-                    ...userData, // Maintenant userData existe !
-                    avatar: selectedAvatar,
-                    username: signUpUsername.trim()
-                }
-            }));
+        try {
+            console.log("💾 Sauvegarde profil en base...");
 
-            navigation.navigate('Map');
+            // 🎯 SAUVEGARDER EN BASE DE DONNÉES
+            const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/updateProfil`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: userData.token,
+                    username: signUpUsername.trim(),
+                    avatar: selectedAvatar
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.result) {
+                console.log("✅ Profil sauvé en base");
+
+                // 🎯 METTRE À JOUR REDUX
+                dispatch(updateUser({
+                    userData: {
+                        ...userData,
+                        avatar: selectedAvatar,
+                        username: signUpUsername.trim()
+                    }
+                }));
+
+                // 🎯 ALLER À PERMISSION SCREEN
+                navigation.navigate('PermissionScreen');
+            } else {
+                alert("Erreur sauvegarde profil");
+                console.error("❌ Erreur backend:", data.error);
+            }
+
+        } catch (error) {
+            console.error("❌ Erreur réseau:", error);
+            alert("Erreur de connexion");
         }
     };
 
@@ -208,4 +235,16 @@ const styles = StyleSheet.create({
         color: "#333",
         padding: 10,
     },
+    input: {
+        width: "80%",
+        height: 70,
+        backgroundColor: "#F0F0F0",
+        borderRadius: 33,
+        marginTop: 10,
+        paddingLeft: 20,
+        fontSize: 15,
+        fontFamily: "Fustat-Regular.ttf", // ✅ Mets une font lisible et non stylisée ici
+        color: "#000" // ✅ Assure-toi aussi d'avoir une couleur visible
+    }
+
 });

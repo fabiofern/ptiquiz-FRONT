@@ -133,11 +133,23 @@ export default function LoginScreen({ navigation }) {
         fetch(`${URL}/users/signin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email.trim().toLowerCase(), password: logInPassword.trim().toLowerCase() }),
+            body: JSON.stringify({ email: email.trim().toLowerCase(), password: logInPassword.trim() }),
         })
             .then(response => response.json())
             .then(data => {
                 if (data.result) {
+                    // 🎯 LOGIQUE DE NAVIGATION INTELLIGENTE
+                    const hasProfile = data.avatar && data.username;
+                    const hasLocationPermissions = data.locationPermissions?.foreground;
+
+                    console.log('🔍 État utilisateur après connexion:', {
+                        hasProfile,
+                        hasLocationPermissions,
+                        avatar: data.avatar,
+                        username: data.username,
+                        locationPermissions: data.locationPermissions
+                    });
+
                     // Sauvegarder dans Redux
                     dispatch(updateUser({
                         loading: false,
@@ -147,7 +159,18 @@ export default function LoginScreen({ navigation }) {
                             avatar: data.avatar,
                             username: data.username,
                             userID: data._id,
-                            email: email.trim().toLowerCase()
+                            email: email.trim().toLowerCase(),
+                            score: data.score || 0,
+                            completedQuizzes: data.completedQuizzes || {},
+                            unlockedQuizzes: data.unlockedQuizzes || [],
+                            locationPermissions: data.locationPermissions || null,
+                            rewards: data.rewards || { medals: [], trophies: [], titles: [] },
+                            statistics: data.statistics || {
+                                totalQuizzesCompleted: 0,
+                                perfectQuizzes: 0,
+                                streakDays: 0,
+                                lastPlayDate: null
+                            }
                         }
                     }));
 
@@ -155,7 +178,22 @@ export default function LoginScreen({ navigation }) {
                     setLogInPassword('');
                     setmodalLogIn(false);
                     console.log("Connexion réussie :", email);
-                    navigation.navigate('Map');
+
+                    // 🎯 NAVIGATION CONDITIONNELLE
+                    if (!hasProfile) {
+                        // Pas de profil → Avatar Screen
+                        console.log('➡️ Navigation vers Avatar (pas de profil)');
+                        navigation.navigate('Avatar');
+                    } else if (!hasLocationPermissions) {
+                        // Profil OK mais pas de permissions → Permission Screen
+                        console.log('➡️ Navigation vers PermissionScreen (pas de permissions)');
+                        navigation.navigate('PermissionScreen');
+                    } else {
+                        // Tout est OK → Map directement
+                        console.log('➡️ Navigation vers Map (tout configuré)');
+                        navigation.navigate('MainApp');
+                    }
+
                 } else {
                     dispatch(updateUser({ loading: false }));
                     alert("Nom d'utilisateur ou mot de passe incorrect.");
@@ -166,6 +204,7 @@ export default function LoginScreen({ navigation }) {
                 console.error("Erreur de connexion :", error);
             });
     };
+
 
     return (
         <View style={styles.generalContainer}>
