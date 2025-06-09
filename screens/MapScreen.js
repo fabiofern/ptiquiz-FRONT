@@ -99,7 +99,7 @@ export default function MapScreen() {
       return completedQuiz.score === quiz.totalPoints ? QUIZ_STATES.PERFECT : QUIZ_STATES.COMPLETED;
     }
 
-    const isUnlocked = userData?.unlockedQuizzes?.includes(quizId) || distance < (quiz.unlockRadius || 100);
+    const isUnlocked = userData?.unlockedQuizzes?.includes(quizId) || distance < (quiz.unlockRadius || 10000000000);
     return isUnlocked ? QUIZ_STATES.UNLOCKED : QUIZ_STATES.LOCKED;
   };
 
