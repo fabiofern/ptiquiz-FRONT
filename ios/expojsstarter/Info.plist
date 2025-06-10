@@ -44,10 +44,21 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Nous avons besoin de votre position pour débloquer des quiz à proximité même lorsque l'application est en arrière-plan.</string>
+    
+    <!-- PERMISSIONS GPS -->
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Nous avons besoin de votre position pour débloquer des quiz à proximité.</string>
+    <string>Cette app utilise votre position pour découvrir des quiz autour de vous.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Cette app utilise votre position pour découvrir des quiz même en arrière-plan.</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Cette app utilise votre position pour le tracking GPS permanent.</string>
+    
+    <!-- BACKGROUND MODES -->
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>location</string>
+    </array>
+    
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
