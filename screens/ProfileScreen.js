@@ -93,11 +93,10 @@ export default function ProfileScreen({ navigation }) {
     const [selectedAvatar, setSelectedAvatar] = useState(userData?.avatar || 'avatar01.png');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Calcul dynamique du nombre de colonnes
     const avatarSize = 60;
     const avatarMargin = 8;
-    const modalPadding = 90; // padding de la modale (45*2)
-    const availableWidth = width * 0.9 - modalPadding; // 90% de largeur moins padding
+    const modalPadding = 90;
+    const availableWidth = width * 0.9 - modalPadding;
     const avatarTotalWidth = avatarSize + (avatarMargin * 2);
     const numColumns = Math.floor(availableWidth / avatarTotalWidth);
 
@@ -678,13 +677,6 @@ export default function ProfileScreen({ navigation }) {
                                     <Text style={styles.buttonText}>Sauvegarder</Text>
                                 )}
                             </TouchableOpacity>
-                            {/* <TouchableOpacity
-                                style={[styles.button, styles.cancelButton]}
-                                onPress={() => setIsEditModalVisible(false)}
-                                disabled={isLoading}
-                            >
-                                <Text style={[styles.buttonText, { color: '#FF7043' }]}>Fermer</Text>
-                            </TouchableOpacity> */}
                         </View>
                     </BlurView>
                 </View>

@@ -1,35 +1,32 @@
-import React, { useState, useEffect } from 'react'; // Ajout useEffect
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'; // Ajout ActivityIndicator
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateLocationPermissions } from '../redux/userSlice';
-import { BlurView } from 'expo-blur'; // Import BlurView
-import { useFonts } from "expo-font"; // Import pour les polices
-import * as SplashScreen from "expo-splash-screen"; // Import pour le splash screen
+import { BlurView } from 'expo-blur';
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 
-SplashScreen.preventAutoHideAsync(); // Garde le splash screen visible
+SplashScreen.preventAutoHideAsync();
 
 export default function PermissionScreen({ navigation }) {
     const dispatch = useDispatch();
     const { userData } = useSelector((state) => state.user);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Chargement des polices
     const [loaded] = useFonts({
         "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
         "Fustat-Regular.ttf": require("../assets/fonts/Fustat-Regular.ttf"),
         "Fustat-SemiBold.ttf": require("../assets/fonts/Fustat-SemiBold.ttf"),
     });
 
-    // Cacher l'écran de splash une fois les polices chargées
     useEffect(() => {
         if (loaded) {
             SplashScreen.hideAsync();
         }
     }, [loaded]);
 
-    // Ne pas rendre la page tant que les polices ne sont pas chargées
     if (!loaded) {
         return null;
     }
@@ -47,7 +44,6 @@ export default function PermissionScreen({ navigation }) {
 
                 console.log('✅ Géolocalisation OK');
 
-                // SAUVEGARDER EN BASE DE DONNÉES
                 const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/locationPermissions`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -63,73 +59,40 @@ export default function PermissionScreen({ navigation }) {
                 if (data.result) {
                     console.log("✅ Permissions sauvées en base");
 
-                    // METTRE À JOUR REDUX
                     dispatch(updateLocationPermissions({
                         foreground: true,
                         background: false
                     }));
 
-                    // ALLER À LA MAP
-                    navigation.navigate('MainApp'); // Utilisation de 'MainApp' pour la cohérence
+                    navigation.navigate('MainApp');
                 } else {
                     console.error("❌ Erreur sauvegarde permissions:", data.error);
-                    // Continuer quand même vers Map si la sauvegarde échoue
-                    navigation.navigate('MainApp'); // Utilisation de 'MainApp' pour la cohérence
+                    navigation.navigate('MainApp');
                 }
 
             } else {
                 Alert.alert(
                     'Permission refusée',
                     'Tu peux continuer sans géolocalisation',
-                    [{ text: 'Continuer', onPress: () => navigation.navigate('MainApp') }] // Utilisation de 'MainApp'
+                    [{ text: 'Continuer', onPress: () => navigation.navigate('MainApp') }]
                 );
             }
         } catch (error) {
             console.error('Erreur géolocalisation:', error);
-            navigation.navigate('MainApp'); // Utilisation de 'MainApp'
+            navigation.navigate('MainApp');
         } finally {
             setIsLoading(false);
         }
     };
 
-    // La fonction savePermissionsToBackend est maintenant intégrée dans requestLocationPermission
-    // pour éviter la redondance et s'assurer que Redux et le backend sont mis à jour ensemble.
-    // Vous pouvez la supprimer si elle n'est pas appelée ailleurs.
-    /*
-    const savePermissionsToBackend = async (permissions) => {
-        try {
-            const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/locationPermissions`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: userData.token,
-                    foreground: true,
-                    background: false
-                }),
-            });
-
-            const data = await response.json();
-
-            if (data.result) {
-                console.log('✅ Permissions sauvées en base');
-            } else {
-                console.error('❌ Erreur sauvegarde permissions:', data.error);
-            }
-        } catch (error) {
-            console.error('❌ Erreur réseau:', error);
-        }
-    };
-    */
-
     return (
         <LinearGradient
-            // Dégradé de couleurs pour le fond : Rayon de Soleil
             colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.container}
         >
-            <View style={styles.safeAreaPusher} /> {/* Espace pour SafeAreaView */}
+            <View style={styles.safeAreaPusher} />
 
             <BlurView intensity={50} tint="light" style={styles.glassContent}>
                 <Text style={styles.emoji}>📍</Text>
@@ -145,7 +108,7 @@ export default function PermissionScreen({ navigation }) {
                     disabled={isLoading}
                 >
                     {isLoading ? (
-                        <ActivityIndicator size="small" color="#FF7043" /> // Couleur du Rayon de Soleil
+                        <ActivityIndicator size="small" color="#FF7043" />
                     ) : (
                         <Text style={styles.buttonText}>Autoriser la géolocalisation</Text>
                     )}
@@ -153,7 +116,7 @@ export default function PermissionScreen({ navigation }) {
 
                 <TouchableOpacity
                     style={styles.skipButton}
-                    onPress={() => navigation.navigate('MainApp')} // Utilisation de 'MainApp'
+                    onPress={() => navigation.navigate('MainApp')}
                 >
                     <Text style={styles.skipText}>Plus tard</Text>
                 </TouchableOpacity>
@@ -168,36 +131,31 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    safeAreaPusher: { // Pour pousser le contenu vers le bas et respecter la SafeArea
+    safeAreaPusher: {
         position: 'absolute',
         top: 0,
-        height: 50, // Hauteur arbitraire, ajustez si nécessaire
+        height: 50,
         width: '100%',
     },
-    // Nouveau style pour le contenu "Liquid Glass"
     glassContent: {
         alignItems: 'center',
         paddingHorizontal: 30,
-        paddingVertical: 40, // Plus de padding
-        borderRadius: 30, // Coins arrondis
-        width: '90%', // Prend plus de largeur
-        // Cœur du style "Liquid Glass"
-        backgroundColor: 'rgba(255, 255, 255, 0.08)', // Très translucide
-        borderWidth: 3, // Bordure épaisse
-        borderColor: 'rgba(255, 255, 255, 0.8)', // Bordure blanche lumineuse
-
-        // Lueur et ombre pour le volume
-        shadowColor: 'rgba(255, 240, 200, 1)', // Lueur teintée pour Rayon de Soleil
+        paddingVertical: 40,
+        borderRadius: 30,
+        width: '90%',
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        borderWidth: 3,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: 'rgba(255, 240, 200, 1)',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 1,
-        shadowRadius: 40, // Grande lueur
-        elevation: 60, // Forte élévation pour un effet de bulle
-        overflow: 'hidden', // Important pour BlurView
+        shadowRadius: 40,
+        elevation: 60,
+        overflow: 'hidden',
     },
     emoji: {
         fontSize: 80,
         marginBottom: 20,
-        // Optionnel: légère ombre pour le faire "flotter"
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
@@ -205,58 +163,57 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontFamily: "Fustat-ExtraBold.ttf",
-        color: "#FF7043", // Rose corail de la palette Rayon de Soleil
+        color: "#FF7043",
         textAlign: 'center',
-        marginBottom: 15, // Marge ajustée
+        marginBottom: 15,
         textShadowColor: 'rgba(0, 0, 0, 0.15)',
         textShadowOffset: { width: 2, height: 2 },
         textShadowRadius: 3,
     },
     subtitle: {
-        fontSize: 16, // Taille légèrement réduite pour la lisibilité
-        fontFamily: "Fustat-Regular.ttf", // Police régulière pour le corps de texte
-        color: "#4a4a4a", // Gris foncé de la palette Rayon de Soleil
+        fontSize: 16,
+        fontFamily: "Fustat-Regular.ttf",
+        color: "#4a4a4a",
         textAlign: 'center',
-        lineHeight: 22, // Hauteur de ligne pour une meilleure lecture
+        lineHeight: 22,
         marginBottom: 40,
     },
     button: {
         justifyContent: 'center',
         alignItems: 'center',
-        width: '90%', // Plus large
+        width: '90%',
         height: 68,
         borderRadius: 35,
         marginVertical: 15,
-        // Style "Liquid Glass" pour le bouton
-        backgroundColor: 'rgba(255, 255, 255, 0.2)', // Fond translucide
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1.8,
         borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.9)', // Lueur teintée Rayon de Soleil
+        shadowColor: 'rgba(255, 240, 200, 0.9)',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 1,
         shadowRadius: 15,
         elevation: 25,
     },
     buttonDisabled: {
-        opacity: 0.6, // Conserve l'opacité pour l'état désactivé
+        opacity: 0.6,
     },
     buttonText: {
-        fontSize: 22, // Taille ajustée
+        fontSize: 22,
         fontFamily: "Fustat-ExtraBold.ttf",
-        color: "#FF9800", // Orange vif de la palette Rayon de Soleil
+        color: "#FF9800",
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
     skipButton: {
         padding: 10,
-        marginTop: 10, // Marge pour l'espacement
+        marginTop: 10,
     },
     skipText: {
         fontSize: 16,
-        fontFamily: "Fustat-SemiBold.ttf", // Police SemiBold
-        color: "#4a4a4a", // Gris foncé de la palette Rayon de Soleil
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: "#4a4a4a",
         textDecorationLine: 'underline',
-        opacity: 0.8, // Légèrement moins opaque
+        opacity: 0.8,
     },
 });
