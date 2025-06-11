@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { PersistGate } from 'redux-persist/integration/react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,8 +6,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider, useSelector } from 'react-redux';
 import { store, persistor } from './redux/store';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import { View, Text, Platform } from 'react-native';
+import { View, Text, Platform, ActivityIndicator, AppState } from 'react-native';
 import { BlurView } from 'expo-blur';
+
+// Import du service de géolocalisation
+import BackgroundLocationService from './services/BackgroundLocationService';
 
 // Imports d'écrans
 import LoginScreen from './screens/LoginScreen';
@@ -31,12 +34,10 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 			height: 70,
 			borderRadius: 25,
 			overflow: 'hidden',
-			// Ombre pour iOS
 			shadowColor: '#000',
 			shadowOffset: { width: 0, height: 10 },
 			shadowOpacity: 0.25,
 			shadowRadius: 20,
-			// Ombre pour Android
 			elevation: 15,
 		}}>
 			<BlurView
@@ -73,7 +74,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 						}
 					};
 
-					// 🎯 COULEURS ET ICÔNES
 					const getIconConfig = (routeName) => {
 						switch (routeName) {
 							case 'Map':
@@ -120,7 +120,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 							}}
 							onTouchStart={onPress}
 						>
-							{/* 🌟 INDICATEUR ACTIF */}
 							{isFocused && (
 								<View style={{
 									position: 'absolute',
@@ -137,7 +136,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 								}} />
 							)}
 
-							{/* 🎯 BACKGROUND ACTIF */}
 							{isFocused && (
 								<View style={{
 									position: 'absolute',
@@ -150,7 +148,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 								}} />
 							)}
 
-							{/* 🔥 ICÔNE */}
 							<FontAwesome
 								name={iconConfig.icon}
 								size={isFocused ? 26 : 22}
@@ -163,7 +160,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 								}}
 							/>
 
-							{/* 📝 LABEL */}
 							<Text style={{
 								fontSize: 11,
 								fontWeight: isFocused ? '700' : '500',
@@ -182,7 +178,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 	);
 };
 
-// 🎨 NAVIGATION AVEC TAB BAR STYLÉE
 function MainTabNavigator() {
 	return (
 		<Tab.Navigator
@@ -192,34 +187,21 @@ function MainTabNavigator() {
 				tabBarHideOnKeyboard: true,
 			}}
 		>
-			<Tab.Screen
-				name="Map"
-				component={MapScreen}
-				options={{
-					tabBarLabel: 'Carte',
-				}}
-			/>
-			<Tab.Screen
-				name="Quiz"
-				component={QuizScreen}
-				options={{
-					tabBarLabel: 'Quiz',
-				}}
-			/>
-			<Tab.Screen
-				name="Profile"
-				component={ProfileScreen}
-				options={{
-					tabBarLabel: 'Profil',
-				}}
-			/>
+			<Tab.Screen name="Map" component={MapScreen} options={{ tabBarLabel: 'Carte' }} />
+			<Tab.Screen name="Quiz" component={QuizScreen} options={{ tabBarLabel: 'Quiz' }} />
+			<Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profil' }} />
 		</Tab.Navigator>
 	);
 }
 
-// 🎯 NAVIGATION PRINCIPALE - SIMPLE ET CLAIRE
+// 🔧 COMPOSANT AVEC GESTION DU TRACKING
 function AppNavigator() {
 	const { isLoggedIn, userData } = useSelector((state) => state.user);
+	const [locationServiceReady, setLocationServiceReady] = useState(false);
+
+	// 📱 Référence pour suivre l'état de l'app
+	const appState = useRef(AppState.currentState);
+	const isTrackingActive = useRef(false);
 
 	console.log('🔍 État utilisateur:', {
 		isLoggedIn,
@@ -228,7 +210,133 @@ function AppNavigator() {
 		hasLocationPermissions: !!userData?.locationPermissions?.foreground
 	});
 
-	// ✅ TOUTES LES SCREENS DANS UNE STACK - NAVIGATION CONDITIONNELLE AUTOMATIQUE
+	// 🎯 INITIALISATION DU SERVICE DE GÉOLOCALISATION
+	useEffect(() => {
+		async function initLocationService() {
+			try {
+				console.log('🔧 Initialisation du service de géolocalisation...');
+				const initialized = await BackgroundLocationService.initialize();
+
+				if (initialized) {
+					console.log('✅ Service de géolocalisation initialisé avec succès');
+				} else {
+					console.log('⚠️ Service de géolocalisation non disponible');
+				}
+
+				setLocationServiceReady(true);
+			} catch (error) {
+				console.error('❌ Erreur initialisation service géolocalisation:', error);
+				setLocationServiceReady(true);
+			}
+		}
+
+		initLocationService();
+	}, []);
+
+	// 📱 GESTION DES ÉTATS DE L'APPLICATION (foreground/background)
+	useEffect(() => {
+		const handleAppStateChange = (nextAppState) => {
+			console.log('📱 Changement état app:', appState.current, '->', nextAppState);
+
+			if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+				// 🎯 App revient au premier plan
+				console.log('🟢 App active - Mode premier plan');
+
+				// Switch vers mode foreground si tracking actif
+				if (isTrackingActive.current) {
+					BackgroundLocationService.switchToMode('foreground');
+				}
+
+			} else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+				// 🎯 App passe en arrière-plan
+				console.log('🟡 App en arrière-plan - Mode background');
+
+				// Switch vers mode background si tracking actif
+				if (isTrackingActive.current) {
+					BackgroundLocationService.switchToMode('background');
+				}
+			}
+
+			appState.current = nextAppState;
+		};
+
+		const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+		return () => {
+			subscription?.remove();
+		};
+	}, []);
+
+	// 🎯 GESTION AUTOMATIQUE DU TRACKING SELON L'ÉTAT DE CONNEXION
+	useEffect(() => {
+		// 🎯 ATTENDRE QUE LE SERVICE SOIT COMPLÈTEMENT PRÊT
+		if (!locationServiceReady) {
+			console.log('⏳ Service pas encore prêt, attente...');
+			return;
+		}
+
+		const handleTracking = async () => {
+			if (isLoggedIn && userData) {
+				console.log('👤 Utilisateur connecté - Démarrage tracking PERMANENT');
+
+				try {
+					// Configure le service avec les infos utilisateur
+					await BackgroundLocationService.setUserInfo({
+						userId: userData.id || userData._id || 'user_' + Date.now(),
+						username: userData.username || 'Anonymous'
+					});
+
+					// Démarre le tracking
+					const started = await BackgroundLocationService.startTracking();
+					if (started) {
+						isTrackingActive.current = true;
+						console.log('✅ Tracking géolocalisation actif en PERMANENT');
+					} else {
+						console.log('⚠️ Impossible de démarrer le tracking');
+					}
+				} catch (error) {
+					console.error('❌ Erreur démarrage tracking:', error);
+				}
+			} else {
+				console.log('🚪 Utilisateur déconnecté - Arrêt tracking');
+				try {
+					await BackgroundLocationService.stopTracking();
+					isTrackingActive.current = false;
+				} catch (error) {
+					console.error('❌ Erreur arrêt tracking:', error);
+				}
+			}
+		};
+
+		handleTracking();
+	}, [isLoggedIn, userData, locationServiceReady]); // 🎯 DÉPENDANCE SUR locationServiceReady
+
+	// 🧹 NETTOYAGE LORS DE LA FERMETURE DE L'APP
+	useEffect(() => {
+		return () => {
+			console.log('🧹 Nettoyage du service géolocalisation');
+			BackgroundLocationService.cleanup();
+		};
+	}, []);
+
+	// 📱 ÉCRAN DE CHARGEMENT
+	if (!locationServiceReady) {
+		return (
+			<View style={{
+				flex: 1,
+				justifyContent: 'center',
+				alignItems: 'center',
+				backgroundColor: '#1a1a2e'
+			}}>
+				<ActivityIndicator size="large" color="#9d4edd" />
+				<Text style={{ color: '#ffffff', marginTop: 20, fontSize: 16 }}>
+					Initialisation de TiQuiz...
+				</Text>
+			</View>
+		);
+	}
+
+	// ✅ NAVIGATION PRINCIPALE
 	return (
 		<Stack.Navigator screenOptions={{ headerShown: false }}>
 			<Stack.Screen name="Login" component={LoginScreen} />

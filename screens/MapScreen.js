@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState, useRef } from "react";
-import { View, StyleSheet, ActivityIndicator, Text, Image, TouchableOpacity } from "react-native";
+import { View, StyleSheet, ActivityIndicator, Text, Image, TouchableOpacity, Animated } from "react-native";
 import MapView, { Marker, Callout } from "react-native-maps";
 import * as Location from "expo-location";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,6 +9,10 @@ import { updateUser } from '../redux/userSlice';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function MapScreen() {
   const URL = process.env.EXPO_PUBLIC_BACKEND_URL
@@ -17,12 +22,30 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locationError, setLocationError] = useState(false);
-  const [selectedPoint, setSelectedPoint] = useState(null);
   const [quizLocations, setQuizLocations] = useState([]);
   const [apiLoading, setApiLoading] = useState(true);
 
   const mapRef = useRef(null);
   const hasLocationPermission = userData?.locationPermissions?.foreground;
+
+  // Chargement des polices
+  const [loaded] = useFonts({
+    "Fustat-Bold.ttf": require("../assets/fonts/Fustat-Bold.ttf"),
+    "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
+    "Fustat-Regular.ttf": require("../assets/fonts/Fustat-Regular.ttf"),
+    "Fustat-SemiBold.ttf": require("../assets/fonts/Fustat-SemiBold.ttf"),
+  });
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  // Si les polices ne sont pas encore chargées, ne rien rendre
+  if (!loaded) {
+    return null;
+  }
 
   // États possibles d'un quiz
   const QUIZ_STATES = {
@@ -32,46 +55,7 @@ export default function MapScreen() {
     PERFECT: 'perfect'
   };
 
-  // 🎯 STYLE DE CARTE CUSTOM TIQUIZ
-  const mapCustomStyle = [
-    {
-      "featureType": "all",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#f5f5f5" }]
-    },
-    {
-      "featureType": "water",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#85CAE4" }]
-    },
-    {
-      "featureType": "road",
-      "elementType": "geometry.stroke",
-      "stylers": [{ "color": "#fb7a68" }, { "weight": 0.5 }]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "geometry.fill",
-      "stylers": [{ "color": "#d5c3f3" }]
-    },
-    {
-      "featureType": "poi.park",
-      "elementType": "geometry.fill",
-      "stylers": [{ "color": "#eeddfd" }]
-    },
-    {
-      "featureType": "poi",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#4a3b79" }]
-    },
-    {
-      "featureType": "road",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#3a2e6b" }]
-    }
-  ];
-
-  // 🆕 Fonction pour récupérer les quiz depuis l'API
+  // Fonction pour récupérer les quiz depuis l'API
   const fetchQuizFromAPI = async () => {
     try {
       setApiLoading(true);
@@ -85,14 +69,16 @@ export default function MapScreen() {
       });
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        // Si la réponse n'est pas OK (statut 4xx ou 5xx), tentez de lire comme texte
+        const errorText = await response.text();
+        throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
 
       if (data.result && data.quiz) {
         setQuizLocations(data.quiz);
-        console.log(`📍 ${data.quiz.length} quiz chargés depuis l'API`);
+        console.log(`📍 ${data.quiz.length} quiz chargés depuis l\'API`);
       } else {
         console.log('❌ Aucun quiz trouvé dans l\'API');
       }
@@ -114,7 +100,7 @@ export default function MapScreen() {
     return R * c;
   };
 
-  // 🎯 Calcul du score total utilisateur (points obtenus)
+  // Calcul du score total utilisateur
   const calculateUserTotalScore = () => {
     const completedQuizzes = userData?.completedQuizzes || {};
     return Object.values(completedQuizzes).reduce((total, quiz) => {
@@ -122,14 +108,15 @@ export default function MapScreen() {
     }, 0);
   };
 
-  // 🎯 UNE SEULE fonction getQuizState
+  // UNE SEULE fonction getQuizState
   const getQuizState = (quiz) => {
     if (!userLocation) return QUIZ_STATES.LOCKED;
 
-    const quizId = quiz._id?.$oid || quiz._id;
+    const quizId = quiz._id;
     const completedQuiz = userData?.completedQuizzes?.[quizId];
 
     if (completedQuiz) {
+      // Utiliser le pourcentage pour déterminer si c'est parfait
       return completedQuiz.percentage === 100 ? QUIZ_STATES.PERFECT : QUIZ_STATES.COMPLETED;
     }
 
@@ -139,21 +126,21 @@ export default function MapScreen() {
 
   const getPinColor = (state) => {
     switch (state) {
-      case QUIZ_STATES.LOCKED: return '#F44336';      // Rouge
-      case QUIZ_STATES.UNLOCKED: return '#FF9800';    // Orange
-      case QUIZ_STATES.COMPLETED: return '#2196F3';   // Bleu
-      case QUIZ_STATES.PERFECT: return '#4CAF50';     // Vert
+      case QUIZ_STATES.LOCKED: return '#F44336';
+      case QUIZ_STATES.UNLOCKED: return '#FF9800';
+      case QUIZ_STATES.COMPLETED: return '#2196F3';
+      case QUIZ_STATES.PERFECT: return '#4CAF50';
       default: return '#F44336';
     }
   };
 
   const getStateIcon = (state) => {
     switch (state) {
-      case QUIZ_STATES.LOCKED: return '🔒';
-      case QUIZ_STATES.UNLOCKED: return '🎯';
-      case QUIZ_STATES.COMPLETED: return '⭐';
-      case QUIZ_STATES.PERFECT: return '🏆';
-      default: return '🔒';
+      case QUIZ_STATES.LOCKED: return 'lock';
+      case QUIZ_STATES.UNLOCKED: return 'gamepad';
+      case QUIZ_STATES.COMPLETED: return 'star';
+      case QUIZ_STATES.PERFECT: return 'trophy';
+      default: return 'lock';
     }
   };
 
@@ -170,7 +157,7 @@ export default function MapScreen() {
   const getStateDescription = (state) => {
     switch (state) {
       case QUIZ_STATES.LOCKED: return "🔒 Quiz verrouillé - Approche-toi !";
-      case QUIZ_STATES.UNLOCKED: return "🎯 Quiz débloqué - À toi de jouer !";
+      case QUIZ_STATES.UNLOCKED: return "🎮 Quiz débloqué - À toi de jouer !";
       case QUIZ_STATES.COMPLETED: return "⭐ Quiz terminé - Bonne tentative !";
       case QUIZ_STATES.PERFECT: return "🏆 Quiz parfait - Félicitations !";
       default: return "🔒 Quiz verrouillé";
@@ -181,26 +168,127 @@ export default function MapScreen() {
     const state = getQuizState(quiz);
 
     if (state === QUIZ_STATES.UNLOCKED) {
-      console.log('🎮 Quiz débloqué! Prêt à jouer au quiz:', quiz.name);
-      // TODO: Navigation vers QuizScreen
+      console.log('🎮 Quiz débloqué!');
+      // Navigation vers QuizScreen
     } else if (state === QUIZ_STATES.LOCKED) {
-      const distance = userLocation ? getDistanceInMeters(
-        userLocation.latitude,
-        userLocation.longitude,
-        quiz.coordinate.latitude,
-        quiz.coordinate.longitude
-      ) : 999;
-
-      console.log(`🔒 Quiz verrouillé "${quiz.name}" - Distance: ${Math.round(distance)}m`);
-    } else {
-      setSelectedPoint({
-        ...quiz,
-        state: state
-      });
+      console.log('🔒 Quiz verrouillé');
     }
   };
 
-  // 🆕 Chargement des quiz depuis l'API
+  // COMPOSANT PIN PERSONNALISÉ (avec animation)
+  const CustomPin = ({ quiz }) => {
+    const state = getQuizState(quiz);
+    const color = getPinColor(state);
+    const icon = getStateIcon(state);
+
+    const pulseAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      if (state === QUIZ_STATES.UNLOCKED) {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(pulseAnim, {
+              toValue: 0,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      } else {
+        pulseAnim.setValue(0);
+        pulseAnim.stopAnimation();
+      }
+    }, [state]);
+
+    const pulseScale = pulseAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.8, 1.2, 0.8],
+    });
+
+    const pulseOpacity = pulseAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.6, 0.2, 0.6],
+    });
+
+    return (
+      <View style={styles.customPinContainer}>
+        {/* Animation pulse pour les quiz débloqués */}
+        {state === QUIZ_STATES.UNLOCKED && (
+          <Animated.View style={[
+            styles.pulseAnimation,
+            { backgroundColor: color + '50', transform: [{ scale: pulseScale }], opacity: pulseOpacity }
+          ]} />
+        )}
+
+        {/* Pin principal en "liquid glass" */}
+        <LinearGradient
+          colors={['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.6)']}
+          style={styles.customPin}
+        >
+          {/* FontAwesome est maintenant enfant direct de LinearGradient */}
+          <FontAwesome name={icon} size={20} color={color} />
+        </LinearGradient>
+
+        {/* Petit indicateur en bas */}
+        <View style={[styles.pinBottom, { backgroundColor: color, borderColor: 'rgba(255, 255, 255, 0.8)' }]} />
+      </View>
+    );
+  };
+
+  // PIN UTILISATEUR CUSTOM (avec animation)
+  const UserPin = () => {
+    const pulseAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }, []);
+
+    const pulseScale = pulseAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.9, 1.1, 0.9],
+    });
+
+    const pulseOpacity = pulseAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0.8, 0.3, 0.8],
+    });
+
+    return (
+      <View style={styles.userPinContainer}>
+        <Animated.View style={[
+          styles.userPulse,
+          { backgroundColor: 'rgba(255, 152, 0, 0.3)', transform: [{ scale: pulseScale }], opacity: pulseOpacity }
+        ]} />
+        <LinearGradient
+          colors={['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.6)']}
+          style={styles.userPin}
+        >
+          {/* FontAwesome est maintenant enfant direct de LinearGradient */}
+          <FontAwesome name="user" size={16} color="#FF7043" />
+        </LinearGradient>
+      </View>
+    );
+  };
+
+  // Chargement des quiz depuis l'API
   useEffect(() => {
     fetchQuizFromAPI();
   }, []);
@@ -244,7 +332,7 @@ export default function MapScreen() {
     initializeLocation();
   }, [isLoggedIn, hasLocationPermission]);
 
-  // 🎯 UN SEUL useEffect pour l'API de déverrouillage
+  // UN SEUL useEffect pour l'API de déverrouillage
   useEffect(() => {
     if (!userLocation || !userData?.userID || quizLocations.length === 0) return;
 
@@ -264,7 +352,17 @@ export default function MapScreen() {
           }),
         });
 
-        const data = await response.json();
+        // Tente de lire la réponse comme JSON. Si ça échoue, lis comme texte.
+        let data;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.indexOf('application/json') !== -1) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          console.error('Réponse non-JSON:', text);
+          throw new Error(`Erreur serveur: ${response.status} - ${text}`);
+        }
+
         console.log('📊 Réponse API unlock:', data);
 
         if (data.result) {
@@ -300,34 +398,17 @@ export default function MapScreen() {
     checkUnlocksViaAPI();
   }, [userLocation, userData?.userID, quizLocations.length]);
 
-  // 🎨 CUSTOM MARKER COMPONENT
-  const CustomMarker = ({ quiz }) => {
-    const state = getQuizState(quiz);
-    const color = getPinColor(state);
-    const icon = getStateIcon(state);
-
-    return (
-      <View style={[styles.customMarker, { backgroundColor: color }]}>
-        <Text style={styles.markerIcon}>{icon}</Text>
-        {state === QUIZ_STATES.UNLOCKED && (
-          <View style={styles.pulseOuter}>
-            <View style={[styles.pulseInner, { backgroundColor: color }]} />
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // Loading states
+  // Loading states avec style TiQuiz
   if (isLoading || apiLoading) {
     return (
       <LinearGradient
-        colors={['#eeddfd', '#d5c3f3']}
+        // Dégradé de couleurs pour le fond : Rayon de Soleil
+        colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.loaderContainer}
       >
-        <ActivityIndicator size="large" color="#fb7a68" />
+        <ActivityIndicator size="large" color="#FF7043" />
         <Text style={styles.loaderText}>
           {isLoading ? 'Localisation en cours...' : 'Chargement des quiz...'}
         </Text>
@@ -338,7 +419,8 @@ export default function MapScreen() {
   if (!hasLocationPermission) {
     return (
       <LinearGradient
-        colors={['#eeddfd', '#d5c3f3']}
+        // Dégradé de couleurs pour le fond : Rayon de Soleil
+        colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.loaderContainer}
@@ -356,7 +438,8 @@ export default function MapScreen() {
   if (locationError || !userLocation) {
     return (
       <LinearGradient
-        colors={['#eeddfd', '#d5c3f3']}
+        // Dégradé de couleurs pour le fond : Rayon de Soleil
+        colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.loaderContainer}
@@ -376,46 +459,60 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 🗺️ CARTE AVEC STYLE CUSTOM */}
+      {/* ENCADREMENT TIQUIZ GLASSMORPHISM */}
+      <BlurView intensity={80} style={styles.headerFrame}>
+        <LinearGradient
+          // Dégradé translucide de la palette "Rayon de Soleil"
+          colors={['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.1)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.tiquizTitle}>🎯 TiQuiz</Text>
+              <Text style={styles.headerSubtitle}>
+                {unlockedCount}/{quizLocations.length} quiz débloqués
+              </Text>
+            </View>
+            <View style={styles.headerRight}>
+              <Text style={styles.scoreLabel}>Score</Text>
+              <Text style={styles.scoreValue}>{totalScore}</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </BlurView>
+
+      {/* CARTE */}
       <MapView
         ref={mapRef}
         style={styles.map}
-        customMapStyle={mapCustomStyle}
         initialRegion={{
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
-        onPress={() => {
-          if (selectedPoint) setSelectedPoint(null);
-        }}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
       >
-        {/* 📍 Pin de l'utilisateur stylé */}
+        {/* Pin utilisateur custom */}
         <Marker
           coordinate={userLocation}
           anchor={{ x: 0.5, y: 0.5 }}
         >
-          <View style={styles.userMarker}>
-            <LinearGradient
-              colors={['#85CAE4', '#5BB3D8']}
-              style={styles.userMarkerGradient}
-            >
-              <FontAwesome name="user" size={16} color="white" />
-            </LinearGradient>
-            <View style={styles.userMarkerPulse} />
-          </View>
+          <UserPin />
         </Marker>
 
-        {/* 🎯 Pins des quiz avec markers custom */}
+        {/* Pins des quiz avec composants custom */}
         {quizLocations.map((quiz) => (
           <Marker
             key={quiz._id}
             coordinate={quiz.coordinate}
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={{ x: 0.5, y: 1 }}
             onPress={() => handleQuizPress(quiz)}
           >
-            <CustomMarker quiz={quiz} />
+            <CustomPin quiz={quiz} />
             <Callout>
               <View style={styles.calloutContainer}>
                 <Text style={styles.calloutTitle}>
@@ -451,76 +548,33 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* 🎨 HEADER GLASSMORPHISM STYLÉ */}
-      <BlurView intensity={80} style={styles.headerOverlay}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>🎯 TiQuiz</Text>
-            <Text style={styles.headerSubtitle}>
-              {unlockedCount}/{quizLocations.length} quiz débloqués
-            </Text>
+      {/* LÉGENDE ÉLÉGANTE */}
+      <BlurView intensity={80} style={styles.legendFrame}>
+        <LinearGradient
+          // Dégradé translucide de la palette "Rayon de Soleil"
+          colors={['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.1)']}
+          style={styles.legendGradient}
+        >
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <FontAwesome name="lock" size={12} color="#F44336" />
+              <Text style={styles.legendText}>Verrouillé</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <FontAwesome name="gamepad" size={12} color="#FF9800" />
+              <Text style={styles.legendText}>Débloqué</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <FontAwesome name="star" size={12} color="#2196F3" />
+              <Text style={styles.legendText}>Terminé</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <FontAwesome name="trophy" size={12} color="#4CAF50" />
+              <Text style={styles.legendText}>Parfait</Text>
+            </View>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.scoreLabel}>Score</Text>
-            <Text style={styles.scoreValue}>{totalScore}</Text>
-          </View>
-        </View>
+        </LinearGradient>
       </BlurView>
-
-      {/* 🎭 LÉGENDE DES COULEURS */}
-      <BlurView intensity={80} style={styles.legendOverlay}>
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
-            <Text style={styles.legendText}>Verrouillé</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
-            <Text style={styles.legendText}>Débloqué</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#2196F3' }]} />
-            <Text style={styles.legendText}>Terminé</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-            <Text style={styles.legendText}>Parfait</Text>
-          </View>
-        </View>
-      </BlurView>
-
-      {/* 📱 CARTE INFO DÉTAILLÉE */}
-      {selectedPoint && (
-        <BlurView intensity={90} style={[
-          styles.infoCard,
-          { borderLeftColor: getPinColor(selectedPoint.state) }
-        ]}>
-          {selectedPoint.image && selectedPoint.image.startsWith('http') && (
-            <Image
-              source={{ uri: selectedPoint.image }}
-              style={styles.imageSide}
-              resizeMode="cover"
-            />
-          )}
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>{selectedPoint.name}</Text>
-            <Text style={styles.infoDescription}>{selectedPoint.descriptionLieu}</Text>
-            <Text style={[
-              styles.infoState,
-              { color: getPinColor(selectedPoint.state) }
-            ]}>
-              {getStateDescription(selectedPoint.state)}
-            </Text>
-            <Text style={styles.infoBadge}>🏅 {selectedPoint.badgeDebloque}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setSelectedPoint(null)}
-          >
-            <FontAwesome name="times" size={16} color="white" />
-          </TouchableOpacity>
-        </BlurView>
-      )}
     </View>
   );
 }
@@ -541,278 +595,248 @@ const styles = StyleSheet.create({
   },
   loaderText: {
     fontSize: 18,
-    color: "#4a3b79",
-    fontWeight: "600",
+    fontFamily: "Fustat-SemiBold.ttf",
+    color: "#FF9800",
     marginTop: 10,
     textAlign: 'center',
   },
   errorMessage: {
-    fontSize: 18,
-    color: "#4a3b79",
+    fontSize: 20,
+    fontFamily: "Fustat-ExtraBold.ttf",
+    color: "#FF7043",
     textAlign: "center",
     padding: 20,
-    fontWeight: "700",
   },
   warningMessage: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 16,
+    fontFamily: "Fustat-Regular.ttf",
+    color: "#4a4a4a",
     textAlign: "center",
     padding: 10,
     marginTop: 10,
   },
 
-  // Header overlay
-  headerOverlay: {
+  // Header frame TiQuiz (Liquid Glass)
+  headerFrame: {
     position: 'absolute',
     top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    left: 15,
+    right: 15,
+    zIndex: 10,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.7)',
+
+    // Effet de lueur et d'ombre pour le volume "liquid glass"
+    shadowColor: 'rgba(255, 240, 200, 1)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 30,
+  },
+  headerGradient: {
+    padding: 16,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
   },
   headerLeft: {
     flex: 1,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2c1d53',
+  tiquizTitle: {
+    fontSize: 22,
+    fontFamily: "Fustat-ExtraBold.ttf",
+    color: '#FF7043',
     marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#4a3b79',
-    fontWeight: '500',
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#4a4a4a',
   },
   headerRight: {
     alignItems: 'center',
   },
   scoreLabel: {
     fontSize: 11,
-    color: '#4a3b79',
-    fontWeight: '500',
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#4a4a4a',
   },
   scoreValue: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#fb7a68',
+    fontFamily: "Fustat-ExtraBold.ttf",
+    color: '#FF9800',
   },
 
-  // Legend overlay
-  legendOverlay: {
+  // Legend frame (Liquid Glass)
+  legendFrame: {
     position: 'absolute',
-    bottom: 120,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    bottom: 40,
+    left: 15,
+    right: 15,
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.7)',
+
+    // Effet de lueur et d'ombre pour le volume "liquid glass"
+    shadowColor: 'rgba(255, 240, 200, 1)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  legendGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
   legendRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
   },
   legendItem: {
     alignItems: 'center',
     flex: 1,
   },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginBottom: 4,
-  },
   legendText: {
     fontSize: 10,
-    color: '#2c1d53',
-    fontWeight: '500',
+    fontFamily: "Fustat-SemiBold.ttf",
+    color: '#4a4a4a',
     textAlign: 'center',
+    marginTop: 4,
   },
 
-  // Custom markers
-  customMarker: {
+  // Custom quiz pins (Liquid Glass Bubbles)
+  customPinContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customPin: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    // Ombre pour la profondeur de la bulle
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 10,
+    overflow: 'hidden', // Ajout de l'overflow ici
   },
-  markerIcon: {
-    fontSize: 16,
-    color: 'white',
+  pinBottom: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: -4,
+    borderWidth: 1.5,
   },
-  pulseOuter: {
+  pulseAnimation: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+  },
+
+  // User pin (Liquid Glass Bubble)
+  userPinContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userPin: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    // Ombre pour la profondeur de la bulle
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 10,
+    overflow: 'hidden', // Ajout de l'overflow ici
+  },
+  userPulse: {
     position: 'absolute',
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255, 152, 0, 0.3)',
-    zIndex: -1,
-  },
-  pulseInner: {
-    position: 'absolute',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    top: 5,
-    left: 5,
-    opacity: 0.5,
   },
 
-  // User marker
-  userMarker: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userMarkerGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  userMarkerPulse: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(133, 202, 228, 0.3)',
-    zIndex: -1,
-  },
-
-  // Info card
-  infoCard: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderLeftWidth: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    overflow: 'hidden',
-  },
-  imageSide: {
-    width: 80,
-    height: 100,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  infoContent: {
-    flex: 1,
-    flexShrink: 1,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-    color: '#2c1d53',
-  },
-  infoDescription: {
-    fontSize: 13,
-    color: '#4a3b79',
-    marginBottom: 8,
-  },
-  infoState: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  infoBadge: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#fb7a68',
-  },
-  closeButton: {
-    backgroundColor: 'rgba(244, 67, 54, 0.8)',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-
-  // Callout
+  // Callout styling (Optimisé pour la lisibilité)
   calloutContainer: {
     width: 280,
-    padding: 12,
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    // Optionnel: ajouter une légère ombre si supporté par Callout
+    shadowColor: 'rgba(0,0,0,0.2)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
+    overflow: 'hidden', // Ajout de l'overflow ici
   },
   calloutTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontFamily: "Fustat-ExtraBold.ttf",
+    color: '#FF7043',
     marginBottom: 6,
-    color: '#2c1d53',
   },
   calloutArrondissement: {
-    fontSize: 12,
-    color: '#85CAE4',
-    fontWeight: '600',
+    fontSize: 13,
+    fontFamily: "Fustat-SemiBold.ttf",
+    color: '#FF9800',
     marginBottom: 4,
   },
   calloutDescription: {
-    fontSize: 13,
-    color: '#4a3b79',
+    fontSize: 14,
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#4a4a4a',
     marginBottom: 8,
     fontStyle: 'italic',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   calloutInfo: {
     fontSize: 12,
-    color: '#666',
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#666666',
     marginBottom: 4,
   },
   calloutDifficulty: {
-    fontSize: 11,
-    color: '#666',
+    fontSize: 12,
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#666666',
     marginBottom: 4,
   },
   calloutPopularity: {
-    fontSize: 11,
-    color: '#666',
+    fontSize: 12,
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#666666',
     marginBottom: 4,
   },
   calloutBadge: {
-    fontSize: 11,
-    color: '#fb7a68',
-    fontWeight: '600',
+    fontSize: 13,
+    fontFamily: "Fustat-SemiBold.ttf",
+    color: '#FF7043',
     marginBottom: 6,
   },
   calloutState: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 14,
+    fontFamily: "Fustat-Bold.ttf",
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
   },
 });
