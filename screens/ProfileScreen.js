@@ -1,31 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react'; // Ajout de useRef
-import { // Ajout de Dimensions et Animated
+import React, { useState, useEffect, useRef } from 'react';
+import {
     StyleSheet, View, SafeAreaView, Text, TouchableOpacity,
-    ScrollView, Image, Alert, ActivityIndicator, Dimensions, Animated
+    ScrollView, Image, Alert, ActivityIndicator, Dimensions, Animated, Modal, TextInput, FlatList
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useDispatch, useSelector } from 'react-redux';
-import { resetUser } from '../redux/userSlice';
+import { resetUser, updateUser } from '../redux/userSlice';
 import { RewardsService, MEDALS, TROPHIES, TITLES } from '../services/RewardsService';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-// import { Modal } from 'react-native'; // Modal est déjà importé via React Native.
-// import LocationDebugComponent from '../components/LocationDebugComponent'; // Ce composant n'est pas fourni
 
 SplashScreen.preventAutoHideAsync();
 
-const { width, height } = Dimensions.get('window'); // Dimensions de l'écran
+const { width, height } = Dimensions.get('window');
 
-// --- NOUVEAU COMPOSANT : FOND DYNAMIQUE "AURORA" ---
 const AuroraBackground = () => {
-    // État pour savoir si les animations sont initialisées
     const [isReady, setIsReady] = useState(false);
-
-    // Initialisation des valeurs animées dans un useRef qui s'exécute une seule fois
     const blobs = useRef([]);
 
-    // Initialiser les Animated.Value une seule fois après le premier rendu
     useEffect(() => {
         if (!isReady) {
             blobs.current = [...Array(6)].map(() => ({
@@ -37,41 +30,22 @@ const AuroraBackground = () => {
             }));
             setIsReady(true);
 
-            // Démarrer les animations immédiatement après l'initialisation
             blobs.current.forEach(blob => {
                 const animateBlob = () => {
                     Animated.loop(
                         Animated.parallel([
-                            Animated.timing(blob.translateX, {
-                                toValue: Math.random() * width,
-                                duration: blob.duration,
-                                useNativeDriver: true,
-                            }),
-                            Animated.timing(blob.translateY, {
-                                toValue: Math.random() * height,
-                                duration: blob.duration,
-                                useNativeDriver: true,
-                            }),
-                            Animated.timing(blob.scale, {
-                                toValue: 0.8 + Math.random() * 0.7,
-                                duration: blob.duration,
-                                useNativeDriver: true,
-                            }),
-                            Animated.timing(blob.opacity, {
-                                toValue: 0.2 + Math.random() * 0.3,
-                                duration: blob.duration,
-                                useNativeDriver: true,
-                            }),
+                            Animated.timing(blob.translateX, { toValue: Math.random() * width, duration: blob.duration, useNativeDriver: true }),
+                            Animated.timing(blob.translateY, { toValue: Math.random() * height, duration: blob.duration, useNativeDriver: true }),
+                            Animated.timing(blob.scale, { toValue: 0.8 + Math.random() * 0.7, duration: blob.duration, useNativeDriver: true }),
+                            Animated.timing(blob.opacity, { toValue: 0.2 + Math.random() * 0.3, duration: blob.duration, useNativeDriver: true }),
                         ])
                     ).start();
                 };
                 animateBlob();
             });
         }
-    }, [isReady]); // Déclencher une seule fois
+    }, [isReady]);
 
-
-    // Couleurs de la palette "Rayon de Soleil" avec opacité faible
     const auroraColors = [
         'rgba(255, 152, 0, 0.2)',
         'rgba(255, 112, 67, 0.2)',
@@ -81,7 +55,7 @@ const AuroraBackground = () => {
     ];
 
     if (!isReady) {
-        return null; // Ne rien rendre tant que les animations ne sont pas prêtes
+        return null;
     }
 
     return (
@@ -107,16 +81,17 @@ const AuroraBackground = () => {
         </View>
     );
 };
-// --- FIN DU COMPOSANT FOND DYNAMIQUE "AURORA" ---
-
 
 export default function ProfileScreen({ navigation }) {
-    const URL = process.env.EXPO_PUBLIC_BACKEND_URL
+    const URL = process.env.EXPO_PUBLIC_BACKEND_URL;
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    // Chargement des polices (assurez-vous que tous les fichiers sont dans assets/fonts)
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+    const [newUsername, setNewUsername] = useState(userData?.username || '');
+    const [selectedAvatar, setSelectedAvatar] = useState(userData?.avatar || 'avatar01.png');
+    const [isLoading, setIsLoading] = useState(false);
     const [loaded] = useFonts({
         "Fustat-Bold.ttf": require("../assets/fonts/Fustat-Bold.ttf"),
         "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
@@ -130,7 +105,13 @@ export default function ProfileScreen({ navigation }) {
         }
     }, [loaded]);
 
-    // Force le rafraîchissement quand on focus sur l'écran
+    useEffect(() => {
+        if (isEditModalVisible) {
+            setNewUsername(userData?.username || '');
+            setSelectedAvatar(userData?.avatar || 'avatar01.png');
+        }
+    }, [userData, isEditModalVisible]);
+
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             setRefreshKey(prev => prev + 1);
@@ -138,7 +119,51 @@ export default function ProfileScreen({ navigation }) {
         return unsubscribe;
     }, [navigation]);
 
-    // Si les polices ne sont pas encore chargées ou non connecté, ne rien rendre ou afficher un message simple
+    const handleSaveProfile = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${URL}/users/updateProfil`, { // ✅ Change l'URL
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: newUsername,
+                    avatar: selectedAvatar,
+                    token: userData.token // ✅ Utilise token au lieu de userId
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Échec de la mise à jour du profil');
+            }
+
+            const updatedUserDataResponse = await response.json();
+
+            if (updatedUserDataResponse.result) { // ✅ Vérifier result
+                dispatch(updateUser({
+                    userData: {
+                        ...userData,
+                        username: newUsername,
+                        avatar: selectedAvatar
+                    }
+                }));
+
+                Alert.alert('Succès', 'Votre profil a été mis à jour !');
+                setIsEditModalVisible(false);
+            } else {
+                throw new Error(updatedUserDataResponse.error || 'Erreur de mise à jour');
+            }
+
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde du profil:', error);
+            Alert.alert('Erreur', error.message || 'Une erreur est survenue lors de la mise à jour.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     if (!loaded) {
         return null;
     }
@@ -146,7 +171,6 @@ export default function ProfileScreen({ navigation }) {
     if (!isLoggedIn || !userData) {
         return (
             <LinearGradient
-                // Dégradé de couleurs pour le fond : Rayon de Soleil
                 colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -176,8 +200,6 @@ export default function ProfileScreen({ navigation }) {
         'avatar15.png': require('../assets/avatars/avatar15.png'),
     };
 
-
-    // CALCUL DU SCORE TOTAL RÉEL (points obtenus, pas total possible)
     const calculateUserTotalScore = () => {
         const completedQuizzes = userData?.completedQuizzes || {};
         return Object.values(completedQuizzes).reduce((total, quiz) => {
@@ -185,14 +207,13 @@ export default function ProfileScreen({ navigation }) {
         }, 0);
     };
 
-    // STATISTIQUES MISES À JOUR
     const stats = {
         totalQuizzes: Object.keys(userData.completedQuizzes || {}).length,
         perfectQuizzes: Object.values(userData.completedQuizzes || {})
             .filter(quiz => quiz.percentage === 100).length,
         excellentQuizzes: Object.values(userData.completedQuizzes || {})
             .filter(quiz => quiz.percentage >= 80 && quiz.percentage < 100).length,
-        totalScore: calculateUserTotalScore(), // Score réel obtenu
+        totalScore: calculateUserTotalScore(),
         averageScore: Object.keys(userData.completedQuizzes || {}).length > 0
             ? Math.round(Object.values(userData.completedQuizzes || {})
                 .reduce((sum, quiz) => sum + (quiz.percentage || 0), 0) /
@@ -204,31 +225,26 @@ export default function ProfileScreen({ navigation }) {
         titles: (userData.rewards?.titles || []).length
     };
 
-    // RANG BASÉ SUR LE SCORE ET LES PERFORMANCES
     const getUserRank = () => {
         const { perfectQuizzes, totalQuizzes, averageScore } = stats;
 
         if (perfectQuizzes >= 10 && averageScore >= 95) {
-            return { rank: 'Maître Suprême', icon: '👑', color: '#FFD700' }; // Or
+            return { rank: 'Maître Suprême', icon: '👑', color: '#FFD700' };
         } else if (perfectQuizzes >= 5 && averageScore >= 90) {
-            return { rank: 'Expert', icon: '🏆', color: '#C0C0C0' }; // Argent
+            return { rank: 'Expert', icon: '🏆', color: '#C0C0C0' };
         } else if (totalQuizzes >= 10 && averageScore >= 80) {
-            return { rank: 'Avancé', icon: '⭐', color: '#CD7F32' }; // Bronze
+            return { rank: 'Avancé', icon: '⭐', color: '#CD7F32' };
         } else if (totalQuizzes >= 5 && averageScore >= 70) {
-            return { rank: 'Intermédiaire', icon: '🌟', color: '#FF9800' }; // Orange vibrant
+            return { rank: 'Intermédiaire', icon: '🌟', color: '#FF9800' };
         } else if (totalQuizzes >= 3) {
-            return { rank: 'Novice', icon: '🌱', color: '#4CAF50' }; // Vert
+            return { rank: 'Novice', icon: '🌱', color: '#4CAF50' };
         } else {
-            return { rank: 'Débutant', icon: '🎯', color: '#9E9E9E' }; // Gris
+            return { rank: 'Débutant', icon: '🎯', color: '#9E9E9E' };
         }
     };
 
     const userRank = getUserRank();
-
-    // Titre actuel
     const currentTitle = RewardsService.getCurrentTitle(userData);
-
-    // Prochaine récompense
     const nextReward = RewardsService.getNextRewardProgress(userData);
 
     const handleLogout = () => {
@@ -242,43 +258,25 @@ export default function ProfileScreen({ navigation }) {
         );
     };
 
-    // Cette fonction ne devrait pas être un composant React
-    // Elle renvoie une View stylisée pour être utilisée dans la ScrollView
-    const renderRewardItem = (rewardId, rewardData, type) => (
-        <View key={rewardId} style={styles.rewardItemInner}> {/* Modifié pour le style interne */}
-            <Text style={styles.rewardIcon}>{rewardData.icon}</Text>
-            <View style={styles.rewardInfo}>
-                <Text style={styles.rewardName}>{rewardData.name}</Text>
-                <Text style={styles.rewardDesc}>{rewardData.description}</Text>
-                <Text style={styles.rewardPoints}>+{rewardData.points} points</Text>
-            </View>
-        </View>
-    );
-
-
-    // PERFORMANCE PAR COULEUR
     const getPerformanceColor = (percentage) => {
-        if (percentage === 100) return '#4CAF50'; // Vert (Parfait)
-        if (percentage >= 80) return '#FF9800'; // Orange (Excellent)
-        if (percentage >= 70) return '#64B5F6'; // Bleu (Bon) - Couleur de la palette Rayon de Soleil
-        return '#F44336'; // Rouge (Besoin d'amélioration)
+        if (percentage === 100) return '#4CAF50';
+        if (percentage >= 80) return '#FF9800';
+        if (percentage >= 70) return '#64B5F6';
+        return '#F44336';
     };
 
     return (
         <LinearGradient
-            // Dégradé de couleurs pour le fond : Rayon de Soleil
             colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.container}
         >
-            {/* Le fond dynamique Aurora est ici, derrière le reste du contenu */}
             <AuroraBackground />
 
             <SafeAreaView style={styles.container}>
                 <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
 
-                    {/* EN-TÊTE PROFIL AMÉLIORÉ (Liquid Glass Wrapper) */}
                     <View style={styles.profileHeaderWrapper}>
                         <BlurView intensity={50} tint="light" style={styles.profileHeaderBlur}>
                             <View style={styles.avatarContainer}>
@@ -287,17 +285,15 @@ export default function ProfileScreen({ navigation }) {
                                     style={styles.avatar}
                                 />
 
-                                {/* Badge de rang (Liquid Glass Wrapper) */}
-                                {/* <View style={[styles.rankBadgeWrapper, { backgroundColor: userRank.color + '30', borderColor: userRank.color + '80' }]}>
-                                    <BlurView intensity={30} tint="light" style={styles.rankBadgeBlur}>
-                                        <Text style={[styles.rankIcon, { color: userRank.color }]}>{userRank.icon}</Text>
-                                        <Text style={[styles.rankText, { color: userRank.color }]}>
-                                            {userRank.rank}
-                                        </Text>
+                                <TouchableOpacity
+                                    style={styles.editProfileButton}
+                                    onPress={() => setIsEditModalVisible(true)}
+                                >
+                                    <BlurView intensity={60} tint="light" style={styles.editProfileButtonBlur}>
+                                        <Text style={styles.editProfileButtonText}>✏️ Modifier</Text>
                                     </BlurView>
-                                </View> */}
+                                </TouchableOpacity>
 
-                                {/* Titre actuel (Liquid Glass Wrapper) */}
                                 {currentTitle && (
                                     <View style={[styles.titleBadgeWrapper, { backgroundColor: 'rgba(255, 112, 67, 0.2)', borderColor: 'rgba(255, 112, 67, 0.7)' }]}>
                                         <BlurView intensity={30} tint="light" style={styles.titleBadgeBlur}>
@@ -314,7 +310,6 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
-                    {/* STATISTIQUES DÉTAILLÉES (Liquid Glass Wrapper) */}
                     <View style={styles.statsContainerWrapper}>
                         <BlurView intensity={50} tint="light" style={styles.statsContainerBlur}>
                             <Text style={styles.sectionTitle}>📊 STATISTIQUES DÉTAILLÉES</Text>
@@ -357,7 +352,7 @@ export default function ProfileScreen({ navigation }) {
                                 </View>
                                 <View style={styles.statItemWrapper}>
                                     <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
-                                        <Text style={[styles.statNumber, { color: '#FF7043' }]}> {/* Couleur Rayon de Soleil */}
+                                        <Text style={[styles.statNumber, { color: '#FF7043' }]}>
                                             {stats.medals + stats.trophies + stats.titles}
                                         </Text>
                                         <Text style={styles.statLabel}>Récompenses</Text>
@@ -367,7 +362,6 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
-                    {/* HISTORIQUE DES QUIZ RÉCENTS (Liquid Glass Wrapper) */}
                     {Object.keys(userData.completedQuizzes || {}).length > 0 && (
                         <View style={styles.recentQuizzesContainerWrapper}>
                             <BlurView intensity={50} tint="light" style={styles.recentQuizzesContainerBlur}>
@@ -409,7 +403,6 @@ export default function ProfileScreen({ navigation }) {
                         </View>
                     )}
 
-                    {/* Prochaine récompense (Liquid Glass Wrapper) */}
                     {nextReward && (
                         <View style={styles.nextRewardContainerWrapper}>
                             <BlurView intensity={50} tint="light" style={styles.nextRewardContainerBlur}>
@@ -422,7 +415,7 @@ export default function ProfileScreen({ navigation }) {
                                             <View
                                                 style={[
                                                     styles.progressFill,
-                                                    { width: `${nextReward.percentage}%`, backgroundColor: '#FF9800' } // Couleur de la palette
+                                                    { width: `${nextReward.percentage}%`, backgroundColor: '#FF9800' }
                                                 ]}
                                             />
                                         </View>
@@ -435,7 +428,6 @@ export default function ProfileScreen({ navigation }) {
                         </View>
                     )}
 
-                    {/* MÉDAILLES (Liquid Glass Wrapper) */}
                     <View style={styles.rewardsContainerWrapper}>
                         <BlurView intensity={50} tint="light" style={styles.rewardsContainerBlur}>
                             <Text style={styles.sectionTitle}>🏅 MÉDAILLES ({stats.medals})</Text>
@@ -467,8 +459,7 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
-                    {/* COUPES (Liquid Glass Wrapper) */}
-                    <View style={styles.rewardsContainerWrapper}> {/* Réutilise le wrapper car même style */}
+                    <View style={styles.rewardsContainerWrapper}>
                         <BlurView intensity={50} tint="light" style={styles.rewardsContainerBlur}>
                             <Text style={styles.sectionTitle}>🏆 COUPES ({stats.trophies})</Text>
                             {stats.trophies > 0 ? (
@@ -499,8 +490,7 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
-                    {/* TITRES (Liquid Glass Wrapper) */}
-                    <View style={styles.rewardsContainerWrapper}> {/* Réutilise le wrapper */}
+                    <View style={styles.rewardsContainerWrapper}>
                         <BlurView intensity={50} tint="light" style={styles.rewardsContainerBlur}>
                             <Text style={styles.sectionTitle}>👑 TITRES ({stats.titles})</Text>
                             {stats.titles > 0 ? (
@@ -538,12 +528,10 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
-                    {/* Toutes les récompenses disponibles (Liquid Glass Wrapper) */}
                     <View style={styles.allRewardsContainerWrapper}>
                         <BlurView intensity={50} tint="light" style={styles.allRewardsContainerBlur}>
                             <Text style={styles.sectionTitle}>🎁 TOUTES LES RÉCOMPENSES</Text>
 
-                            {/* Médailles disponibles */}
                             <Text style={styles.subSectionTitle}>Médailles à débloquer (80%+ requis):</Text>
                             {Object.values(MEDALS).map(medal => {
                                 const isUnlocked = (userData.rewards?.medals || []).includes(medal.id);
@@ -557,26 +545,15 @@ export default function ProfileScreen({ navigation }) {
                                                 {isUnlocked ? medal.icon : '🔒'}
                                             </Text>
                                             <View style={styles.availableRewardInfo}>
-                                                <Text style={[
-                                                    styles.availableRewardName,
-                                                    isUnlocked && styles.unlockedRewardName
-                                                ]}>
-                                                    {medal.name}
-                                                </Text>
-                                                <Text style={styles.availableRewardDesc}>
-                                                    {medal.description}
-                                                </Text>
+                                                <Text style={styles.rewardName}>{medal.name}</Text>
+                                                <Text style={styles.rewardDesc}>{medal.description}</Text>
+                                                <Text style={styles.rewardPoints}>+{medal.points} points</Text>
                                             </View>
-                                            {isUnlocked && (
-                                                <Text style={styles.unlockedBadge}>✅</Text>
-                                            )}
                                         </BlurView>
                                     </View>
                                 );
                             })}
-
-                            {/* Coupes disponibles */}
-                            <Text style={styles.subSectionTitle}>Coupes à débloquer (80%+ requis):</Text>
+                            <Text style={styles.subSectionTitle}>Coupes à débloquer (100% d'un thème requis):</Text>
                             {Object.values(TROPHIES).map(trophy => {
                                 const isUnlocked = (userData.rewards?.trophies || []).includes(trophy.id);
                                 return (
@@ -589,26 +566,15 @@ export default function ProfileScreen({ navigation }) {
                                                 {isUnlocked ? trophy.icon : '🔒'}
                                             </Text>
                                             <View style={styles.availableRewardInfo}>
-                                                <Text style={[
-                                                    styles.availableRewardName,
-                                                    isUnlocked && styles.unlockedRewardName
-                                                ]}>
-                                                    {trophy.name}
-                                                </Text>
-                                                <Text style={styles.availableRewardDesc}>
-                                                    {trophy.description}
-                                                </Text>
+                                                <Text style={styles.rewardName}>{trophy.name}</Text>
+                                                <Text style={styles.rewardDesc}>{trophy.description}</Text>
+                                                <Text style={styles.rewardPoints}>+{trophy.points} points</Text>
                                             </View>
-                                            {isUnlocked && (
-                                                <Text style={styles.unlockedBadge}>✅</Text>
-                                            )}
                                         </BlurView>
                                     </View>
                                 );
                             })}
-
-                            {/* Titres disponibles */}
-                            <Text style={styles.subSectionTitle}>Titres à débloquer (100% requis):</Text>
+                            <Text style={styles.subSectionTitle}>Titres à débloquer (exploits spécifiques):</Text>
                             {Object.values(TITLES).map(title => {
                                 const isUnlocked = (userData.rewards?.titles || []).includes(title.id);
                                 return (
@@ -621,36 +587,120 @@ export default function ProfileScreen({ navigation }) {
                                                 {isUnlocked ? title.icon : '🔒'}
                                             </Text>
                                             <View style={styles.availableRewardInfo}>
-                                                <Text style={[
-                                                    styles.availableRewardName,
-                                                    isUnlocked && styles.unlockedRewardName
-                                                ]}>
-                                                    {title.name}
-                                                </Text>
-                                                <Text style={styles.availableRewardDesc}>
-                                                    {title.description}
-                                                </Text>
-                                                <View style={styles.prestigeLevel}>
-                                                    {Array.from({ length: title.prestigeLevel }, (_, i) => (
-                                                        <Text key={i} style={styles.prestigeStar}>⭐</Text>
-                                                    ))}
-                                                </View>
+                                                <Text style={styles.rewardName}>{title.name}</Text>
+                                                <Text style={styles.rewardDesc}>{title.description}</Text>
+                                                <Text style={styles.rewardPoints}>+{title.points} points</Text>
                                             </View>
-                                            {isUnlocked && (
-                                                <Text style={styles.unlockedBadge}>✅</Text>
-                                            )}
                                         </BlurView>
                                     </View>
                                 );
                             })}
                         </BlurView>
                     </View>
-                    <TouchableOpacity style={styles.logoutButtonWrapper} onPress={handleLogout}>
-                        <Text style={styles.logoutText}>Déconnexion</Text>
+
+                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                        <BlurView intensity={60} tint="light" style={styles.logoutButtonBlur}>
+                            <Text style={styles.logoutButtonText}>Déconnexion</Text>
+                        </BlurView>
                     </TouchableOpacity>
 
                 </ScrollView>
             </SafeAreaView>
+
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={isEditModalVisible}
+                onRequestClose={() => setIsEditModalVisible(false)}
+            >
+                <View style={styles.centeredView}>
+                    <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFillObject} />
+
+                    <LinearGradient
+                        colors={['#FFCC80', '#FFE0B2', '#FFF3E0']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.modalView}
+                    >
+                        <BlurView intensity={50} tint="light" style={styles.modalBlurBackground}>
+                            <Text style={styles.modalTitle}>Modifier le Profil</Text>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Nom d'utilisateur :</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    onChangeText={setNewUsername}
+                                    value={newUsername}
+                                    placeholder="Entrez votre nouveau nom d'utilisateur"
+                                    placeholderTextColor="#666"
+                                    maxLength={20}
+                                />
+                            </View>
+
+                            <View style={styles.avatarSectionContainer}>
+                                <Text style={styles.inputLabel}>Choisir un avatar :</Text>
+
+                                <View style={styles.currentAvatarContainer}>
+                                    <Image
+                                        source={avatarImages[selectedAvatar]}
+                                        style={styles.currentSelectedAvatar}
+                                    />
+                                    <Text style={styles.currentAvatarText}>Avatar sélectionné</Text>
+                                </View>
+
+                                <FlatList
+                                    data={Object.keys(avatarImages)}
+                                    keyExtractor={(item) => item}
+                                    numColumns={4}
+                                    showsVerticalScrollIndicator={false}
+                                    contentContainerStyle={styles.avatarFlatListContent}
+                                    renderItem={({ item: avatarFileName }) => (
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.avatarOptionFlat,
+                                                selectedAvatar === avatarFileName && styles.selectedAvatarOptionFlat
+                                            ]}
+                                            onPress={() => setSelectedAvatar(avatarFileName)}
+                                        >
+                                            <Image
+                                                source={avatarImages[avatarFileName]}
+                                                style={styles.avatarOptionImageFlat}
+                                            />
+                                            {selectedAvatar === avatarFileName && (
+                                                <View style={styles.selectedIndicator}>
+                                                    <Text style={styles.checkIcon}>✓</Text>
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+                                />
+                            </View>
+
+                            <View style={styles.buttonContainer}>
+                                <TouchableOpacity
+                                    style={[styles.button, styles.saveButton]}
+                                    onPress={handleSaveProfile}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.buttonText}>Sauvegarder</Text>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.button, styles.cancelButton]}
+                                    onPress={() => setIsEditModalVisible(false)}
+                                    disabled={isLoading}
+                                >
+                                    <Text style={styles.buttonText}>Annuler</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </BlurView>
+                    </LinearGradient>
+                </View>
+            </Modal>
+
         </LinearGradient>
     );
 }
@@ -659,612 +709,782 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingVertical: 30,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+    },
     center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
-    },
     errorText: {
-        fontSize: 18,
-        fontFamily: "Fustat-SemiBold.ttf",
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 20,
         color: '#FF7043',
-        textAlign: 'center',
     },
-
-    // En-tête profil (Wrapper)
     profileHeaderWrapper: {
-        borderRadius: 20,
+        width: '100%',
+        maxWidth: 400,
+        // aspectRatio: 16 / 9,
+        borderRadius: 25,
         overflow: 'hidden',
-        marginBottom: 20,
+        marginBottom: 30,
         borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 1)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 30,
-        elevation: 40,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     profileHeaderBlur: {
-        flex: 1, // S'assure que BlurView remplit le wrapper
-        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Très transparent
-        padding: 20,
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
+        borderRadius: 25,
     },
     avatarContainer: {
-        alignItems: 'center',
+        position: 'relative',
         marginBottom: 15,
+
     },
     avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 4,
-        borderColor: '#FF9800',
-        shadowColor: 'rgba(0, 0, 0, 0.2)',
-        shadowOffset: { width: 0, height: 5 },
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 3,
+        borderColor: '#FFCC80',
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 10,
-    },
-    // Badge de rang (Wrapper)
-    rankBadgeWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        marginTop: 8,
-        borderWidth: 1.5,
-        shadowColor: 'rgba(255, 255, 255, 0.5)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
         shadowRadius: 5,
-        elevation: 5,
-        overflow: 'hidden', // Ajout ici
-    },
-    rankBadgeBlur: {
-        flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)', // Couleur de fond via JS
-    },
-    rankIcon: {
-        fontSize: 16,
-        marginRight: 6,
-    },
-    rankText: {
-        fontSize: 14,
-        fontFamily: "Fustat-ExtraBold.ttf",
-    },
-    // Titre actuel (Wrapper)
-    titleBadgeWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        marginTop: 5,
-        borderWidth: 1.5,
-        shadowColor: 'rgba(255, 255, 255, 0.5)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 5,
-        elevation: 5,
-        overflow: 'hidden', // Ajout ici
-    },
-    titleBadgeBlur: {
-        flex: 1,
-        backgroundColor: 'rgba(255, 112, 67, 0.2)', // Couleur de fond via JS
-    },
-    titleIcon: {
-        fontSize: 16,
-        marginRight: 6,
-    },
-    titleText: {
-        fontSize: 14,
-        fontFamily: "Fustat-SemiBold.ttf",
     },
     username: {
-        fontSize: 28,
-        fontFamily: "Fustat-ExtraBold.ttf",
-        color: '#FF7043',
+        fontFamily: 'Fustat-ExtraBold.ttf',
+        fontSize: 30,
+        color: '#FF9800',
         marginBottom: 5,
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
     email: {
+        fontFamily: 'Fustat-Regular.ttf',
         fontSize: 16,
-        fontFamily: "Fustat-Regular.ttf",
-        color: '#4a4a4a',
-        marginBottom: 8,
+        color: '#666',
+        marginBottom: 15,
     },
     totalScore: {
-        fontSize: 20,
-        fontFamily: "Fustat-SemiBold.ttf",
-        color: '#FF9800',
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 18,
+        color: '#4a4a4a',
         marginBottom: 5,
-        textShadowColor: 'rgba(0, 0, 0, 0.05)',
-        textShadowOffset: { width: 0.5, height: 0.5 },
-        textShadowRadius: 1,
     },
     averageScore: {
-        fontSize: 16,
-        fontFamily: "Fustat-Regular.ttf",
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 18,
         color: '#4a4a4a',
     },
-
-    // Quiz récents (Wrapper)
-    recentQuizzesContainerWrapper: {
+    titleBadgeWrapper: {
+        position: 'absolute',
+        bottom: 0,
+        left: -10,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 20,
-        overflow: 'hidden',
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.8)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 20,
-    },
-    recentQuizzesContainerBlur: {
-        flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        padding: 15,
-    },
-    recentQuizzesScrollContent: {
-        paddingHorizontal: 5,
-    },
-    recentQuizzesRow: {
-        flexDirection: 'row',
-    },
-    // Item de quiz récent (Wrapper)
-    recentQuizItemWrapper: {
-        borderRadius: 15,
-        marginRight: 15,
-        minWidth: 130,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.6)',
-        shadowColor: 'rgba(0, 0, 0, 0.1)',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 10,
-        overflow: 'hidden', // Ajout ici
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 5,
     },
-    recentQuizItemBlur: {
-        flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        padding: 15,
+    titleBadgeBlur: {
+        flexDirection: 'row',
         alignItems: 'center',
+        padding: 8,
+        borderRadius: 20,
     },
-    performanceIndicator: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 10,
+    titleIcon: {
+        fontSize: 20,
+        marginRight: 5,
     },
-    performancePercentage: {
-        color: 'white',
-        fontFamily: 'Fustat-ExtraBold.ttf',
+    titleText: {
+        fontFamily: 'Fustat-Bold.ttf',
         fontSize: 14,
     },
-    recentQuizName: {
-        fontSize: 13,
-        fontFamily: "Fustat-SemiBold.ttf",
-        color: '#4a4a4a',
-        textAlign: 'center',
-        marginBottom: 5,
-    },
-    recentQuizScore: {
-        fontSize: 11,
-        fontFamily: "Fustat-Regular.ttf",
-        color: '#666',
-        marginBottom: 5,
-    },
-    recentQuizBadge: {
-        fontSize: 18,
-    },
-
-    // Statistiques (Wrapper)
-    statsContainerWrapper: {
-        borderRadius: 20,
-        overflow: 'hidden',
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.8)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 20,
-    },
-    statsContainerBlur: {
-        flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        padding: 20,
-    },
     sectionTitle: {
-        fontSize: 20,
-        fontFamily: "Fustat-ExtraBold.ttf",
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 22,
         color: '#FF7043',
-        marginBottom: 15,
+        marginBottom: 20,
         textAlign: 'center',
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
+    statsContainerWrapper: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 25,
+        overflow: 'hidden',
+        marginBottom: 30,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    statsContainerBlur: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        padding: 20,
+        borderRadius: 25,
+    },
     statsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-around',
-        gap: 10,
+        justifyContent: 'space-between',
     },
-    // Item de statistique (Wrapper)
     statItemWrapper: {
-        width: '47%',
+        width: '48%',
+        aspectRatio: 1,
+        marginBottom: 15,
         borderRadius: 15,
+        overflow: 'hidden',
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.6)',
-        shadowColor: 'rgba(0, 0, 0, 0.1)',
-        shadowOffset: { width: 0, height: 5 },
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 10,
-        overflow: 'hidden', // Ajout ici
+        shadowRadius: 4,
+        elevation: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
     },
     statItemBlur: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        padding: 15,
+        justifyContent: 'center',
         alignItems: 'center',
+        padding: 10,
+        borderRadius: 15,
     },
     statNumber: {
-        fontSize: 30,
-        fontFamily: "Fustat-ExtraBold.ttf",
+        fontFamily: 'Fustat-ExtraBold.ttf',
+        fontSize: 28,
         color: '#FF9800',
         marginBottom: 5,
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 1,
     },
     statLabel: {
-        fontSize: 13,
-        fontFamily: "Fustat-Regular.ttf",
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 14,
         color: '#4a4a4a',
         textAlign: 'center',
     },
-
-    // Prochaine récompense (Wrapper)
-    nextRewardContainerWrapper: {
-        borderRadius: 20,
+    recentQuizzesContainerWrapper: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 25,
         overflow: 'hidden',
-        marginBottom: 20,
+        marginBottom: 30,
         borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.8)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 20,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    recentQuizzesContainerBlur: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        padding: 20,
+        borderRadius: 25,
+    },
+    recentQuizzesScrollContent: {
+        paddingRight: 10,
+    },
+    recentQuizzesRow: {
+        flexDirection: 'row',
+    },
+    recentQuizItemWrapper: {
+        width: 140,
+        height: 140,
+        borderRadius: 15,
+        overflow: 'hidden',
+        marginRight: 15,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    recentQuizItemBlur: {
+        flex: 1,
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 15,
+    },
+    performanceIndicator: {
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 20,
+        marginBottom: 8,
+    },
+    performancePercentage: {
+        fontFamily: 'Fustat-Bold.ttf',
+        color: '#FFFFFF',
+        fontSize: 16,
+    },
+    recentQuizName: {
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 14,
+        color: '#4a4a4a',
+        textAlign: 'center',
+        marginBottom: 5,
+    },
+    recentQuizScore: {
+        fontFamily: 'Fustat-Regular.ttf',
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 5,
+    },
+    recentQuizBadge: {
+        fontSize: 20,
+    },
+    nextRewardContainerWrapper: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 25,
+        overflow: 'hidden',
+        marginBottom: 30,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     nextRewardContainerBlur: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        width: '100%',
+        height: '100%',
         padding: 20,
+        borderRadius: 25,
     },
     nextRewardItem: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 15,
+        padding: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
     },
     nextRewardIcon: {
-        fontSize: 35,
+        fontSize: 40,
         marginRight: 15,
     },
     nextRewardInfo: {
         flex: 1,
     },
     nextRewardName: {
+        fontFamily: 'Fustat-Bold.ttf',
         fontSize: 18,
-        fontFamily: "Fustat-SemiBold.ttf",
         color: '#FF7043',
-        marginBottom: 10,
+        marginBottom: 5,
     },
     progressBar: {
         height: 10,
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        backgroundColor: 'rgba(0,0,0,0.1)',
         borderRadius: 5,
-        marginBottom: 5,
         overflow: 'hidden',
+        width: '100%',
+        marginBottom: 5,
     },
     progressFill: {
         height: '100%',
         borderRadius: 5,
     },
     progressText: {
-        fontSize: 13,
-        fontFamily: "Fustat-Regular.ttf",
+        fontFamily: 'Fustat-Regular.ttf',
+        fontSize: 14,
         color: '#4a4a4a',
         textAlign: 'right',
     },
-
-    // Conteneurs de récompenses (Médailles, Coupes, Titres) (Wrapper)
     rewardsContainerWrapper: {
-        borderRadius: 20,
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 25,
         overflow: 'hidden',
-        marginBottom: 20,
+        marginBottom: 30,
         borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.8)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 20,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     rewardsContainerBlur: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        width: '100%',
+        height: '100%',
         padding: 20,
+        borderRadius: 25,
     },
     rewardsScrollContent: {
-        paddingHorizontal: 5,
+        paddingRight: 10,
     },
     rewardsRow: {
         flexDirection: 'row',
     },
-    // Item de récompense (Wrapper)
     rewardItemWrapper: {
+        width: 150,
+        height: 160,
         borderRadius: 15,
+        overflow: 'hidden',
         marginRight: 15,
-        minWidth: 150,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.6)',
-        shadowColor: 'rgba(0, 0, 0, 0.1)',
-        shadowOffset: { width: 0, height: 5 },
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 10,
-        overflow: 'hidden', // Ajout ici
+        shadowRadius: 4,
+        elevation: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     rewardItemBlur: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        padding: 15,
+        width: '100%',
+        justifyContent: 'center',
         alignItems: 'center',
+        padding: 10,
+        borderRadius: 15,
     },
     rewardIcon: {
-        fontSize: 45,
-        marginBottom: 10,
+        fontSize: 40,
+        marginBottom: 5,
     },
     rewardInfo: {
         alignItems: 'center',
     },
     rewardName: {
+        fontFamily: 'Fustat-SemiBold.ttf',
         fontSize: 16,
-        fontFamily: "Fustat-SemiBold.ttf",
         color: '#4a4a4a',
         textAlign: 'center',
-        marginBottom: 5,
+        marginBottom: 3,
     },
     rewardDesc: {
+        fontFamily: 'Fustat-Regular.ttf',
         fontSize: 12,
-        fontFamily: "Fustat-Regular.ttf",
         color: '#666',
         textAlign: 'center',
         marginBottom: 5,
-        lineHeight: 16,
     },
     rewardPoints: {
-        fontSize: 13,
-        fontFamily: "Fustat-SemiBold.ttf",
-        color: '#FF9800',
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 12,
+        color: '#4CAF50',
     },
     noRewardsText: {
-        fontSize: 14,
-        fontFamily: "Fustat-Regular.ttf",
-        color: '#4a4a4a',
+        fontFamily: 'Fustat-Regular.ttf',
+        fontSize: 16,
+        color: '#666',
         textAlign: 'center',
-        fontStyle: 'italic',
-        lineHeight: 20,
+        paddingVertical: 10,
     },
-
-    // Titres (grille)
     titlesGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-around',
-        gap: 15,
+        marginTop: 10,
     },
-    // Item de titre (Wrapper)
     titleItemWrapper: {
+        width: '45%',
+        aspectRatio: 1,
         borderRadius: 15,
-        width: '47%',
+        overflow: 'hidden',
+        marginBottom: 15,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.6)',
-        shadowColor: 'rgba(0, 0, 0, 0.1)',
-        shadowOffset: { width: 0, height: 5 },
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 10,
-        overflow: 'hidden', // Ajout ici
+        shadowRadius: 4,
+        elevation: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     titleItemBlur: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        padding: 15,
+        width: '100%',
+        justifyContent: 'center',
         alignItems: 'center',
+        padding: 10,
+        borderRadius: 15,
     },
-    currentTitleItemBlur: { // Appliqué au BlurView interne
+    currentTitleItemBlur: {
         borderColor: '#FF7043',
+        borderWidth: 2,
         shadowColor: '#FF7043',
-        shadowRadius: 15,
-        elevation: 15,
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
     },
     titleItemIcon: {
         fontSize: 35,
         marginBottom: 5,
     },
     titleItemName: {
-        fontSize: 15,
-        fontFamily: "Fustat-SemiBold.ttf",
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 14,
         color: '#4a4a4a',
         textAlign: 'center',
         marginBottom: 5,
     },
     prestigeLevel: {
         flexDirection: 'row',
-        marginTop: 5,
+        marginBottom: 5,
     },
     prestigeStar: {
         fontSize: 14,
+        color: '#FFD700',
         marginHorizontal: 1,
     },
     currentTitleLabel: {
+        fontFamily: 'Fustat-Bold.ttf',
         fontSize: 10,
-        fontFamily: "Fustat-ExtraBold.ttf",
         color: '#FF7043',
-        marginTop: 5,
+        textAlign: 'center',
     },
-
-    // Toutes les récompenses disponibles (Wrapper)
     allRewardsContainerWrapper: {
-        borderRadius: 20,
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 25,
         overflow: 'hidden',
-        marginBottom: 20,
+        marginBottom: 30,
         borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.8)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 20,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     allRewardsContainerBlur: {
         flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        width: '100%',
+        height: '100%',
         padding: 20,
+        borderRadius: 25,
     },
     subSectionTitle: {
-        fontSize: 16,
-        fontFamily: "Fustat-SemiBold.ttf",
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 18,
         color: '#FF9800',
         marginTop: 15,
         marginBottom: 10,
-        textAlign: 'left',
+        textAlign: 'center',
     },
-    // Item de récompense disponible (Wrapper)
     availableRewardItemWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        width: '100%',
         borderRadius: 15,
-        padding: 12,
+        overflow: 'hidden',
         marginBottom: 10,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: 'rgba(255, 255, 255, 0.5)',
-        shadowColor: 'rgba(0, 0, 0, 0.05)',
-        shadowOffset: { width: 0, height: 3 },
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 5,
-        overflow: 'hidden', // Ajout ici
+        shadowRadius: 2,
+        elevation: 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
     },
     availableRewardItemBlur: {
-        flex: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        flexDirection: 'row', // Pour que le contenu soit flex
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingRight: 10, // Pour éviter que l'icône de badge ne soit coupée
+        padding: 15,
+        borderRadius: 15,
     },
     unlockedRewardItemBlur: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
-        borderColor: 'rgba(255, 240, 200, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.5)',
-        shadowRadius: 10,
-        elevation: 8,
+        backgroundColor: 'rgba(144, 238, 144, 0.2)',
+        borderColor: 'rgba(76, 175, 80, 0.7)',
     },
     availableRewardIcon: {
-        fontSize: 28,
-        marginRight: 10,
+        fontSize: 30,
+        marginRight: 15,
     },
     availableRewardInfo: {
         flex: 1,
     },
-    availableRewardName: {
+    logoutButton: {
+        width: '100%',
+        maxWidth: 250,
+        borderRadius: 30,
+        overflow: 'hidden',
+        marginTop: 30,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    logoutButtonBlur: {
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    logoutButtonText: {
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 18,
+        color: '#FF7043',
+    },
+    editProfileButton: {
+        position: 'absolute',
+        bottom: 0,
+        right: -10,
+        borderRadius: 20,
+        overflow: 'hidden',
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    editProfileButtonBlur: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    editProfileButtonText: {
+        fontFamily: 'Fustat-SemiBold.ttf',
         fontSize: 14,
-        fontFamily: "Fustat-SemiBold.ttf",
         color: '#4a4a4a',
     },
-    unlockedRewardName: {
-        color: '#FF7043',
-    },
-    availableRewardDesc: {
-        fontSize: 12,
-        fontFamily: "Fustat-Regular.ttf",
-        color: '#666',
-    },
-    unlockedBadge: {
-        fontSize: 20,
-        marginLeft: 10,
-    },
-
-    // Bouton de déconnexion (Wrapper)
-    logoutButtonWrapper: {
+    centeredView: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        width: '90%',
+    },
+    modalView: {
+        margin: 20,
+        borderRadius: 25,
+        padding: 25,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        width: '95%',
+        maxWidth: 450,
+        height: '85%',
+        overflow: 'hidden',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    modalBlurBackground: {
+        ...StyleSheet.absoluteFillObject,
+        borderRadius: 25,
+        padding: 20,
+    },
+    modalTitle: {
+        fontFamily: 'Fustat-ExtraBold.ttf',
+        fontSize: 26,
+        color: '#FF7043',
+        marginBottom: 20,
+        textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    avatarSectionContainer: {
+        width: '100%',
+        flex: 1,
+        marginBottom: 20,
+    },
+    currentAvatarContainer: {
+        alignItems: 'center',
+        marginBottom: 15,
+        padding: 15,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 152, 0, 0.4)',
+    },
+    currentSelectedAvatar: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        borderWidth: 3,
+        borderColor: '#FF7043',
+        marginBottom: 8,
+    },
+    currentAvatarText: {
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 14,
+        color: '#4a4a4a',
+    },
+    avatarFlatListContent: {
+        paddingVertical: 10,
+        alignItems: 'center',
+    },
+    avatarOptionFlat: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        margin: 8,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    selectedAvatarOptionFlat: {
+        borderColor: '#FF7043',
+        borderWidth: 3,
+        transform: [{ scale: 1.1 }],
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    avatarOptionImageFlat: {
+        width: 60,
         height: 60,
         borderRadius: 30,
+    },
+    selectedIndicator: {
+        position: 'absolute',
+        bottom: -5,
+        right: -5,
+        backgroundColor: '#4CAF50',
+        borderRadius: 12,
+        width: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    checkIcon: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    inputContainer: {
+        width: '100%',
+        marginBottom: 15,
+    },
+    inputLabel: {
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 16,
+        color: '#4a4a4a',
+        marginBottom: 8,
+        alignSelf: 'flex-start',
+    },
+    input: {
+        width: '100%',
+        padding: 12,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 152, 0, 0.4)',
+        borderRadius: 10,
+        fontFamily: 'Fustat-Regular.ttf',
+        fontSize: 16,
+        color: '#333',
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        width: '100%',
         marginTop: 10,
-        marginBottom: 50,
-        alignSelf: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        borderWidth: 1.8,
-        borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.9)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 25,
-        overflow: 'hidden', // Ajout ici
     },
-    logoutText: {
-        fontSize: 20,
-        fontFamily: "Fustat-ExtraBold.ttf",
-        color: '#FF7043',
-        textShadowColor: 'rgba(0, 0, 0, 0.1)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
-    },
-
-    // Bouton Debug (Wrapper)
-    debugButtonWrapper: {
-        justifyContent: 'center',
+    button: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 25,
         alignItems: 'center',
-        width: '90%',
-        height: 60,
-        borderRadius: 30,
-        marginTop: 20,
-        alignSelf: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        borderWidth: 1.8,
+        marginHorizontal: 8,
+        borderWidth: 1.5,
         borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: 'rgba(255, 240, 200, 0.9)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-        elevation: 25,
-        overflow: 'hidden', // Ajout ici
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        elevation: 7,
     },
-    debugButtonText: {
-        fontSize: 20,
-        fontFamily: "Fustat-ExtraBold.ttf",
-        color: '#64B5F6',
-        textShadowColor: 'rgba(0, 0, 0, 0.1)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
+    saveButton: {
+        backgroundColor: '#FF7043',
+    },
+    cancelButton: {
+        backgroundColor: '#9E9E9E',
+    },
+    buttonText: {
+        fontFamily: 'Fustat-Bold.ttf',
+        color: 'white',
+        fontSize: 16,
     },
 });
