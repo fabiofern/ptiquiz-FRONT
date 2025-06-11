@@ -92,6 +92,15 @@ export default function ProfileScreen({ navigation }) {
     const [newUsername, setNewUsername] = useState(userData?.username || '');
     const [selectedAvatar, setSelectedAvatar] = useState(userData?.avatar || 'avatar01.png');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Calcul dynamique du nombre de colonnes
+    const avatarSize = 60;
+    const avatarMargin = 8;
+    const modalPadding = 90; // padding de la modale (45*2)
+    const availableWidth = width * 0.9 - modalPadding; // 90% de largeur moins padding
+    const avatarTotalWidth = avatarSize + (avatarMargin * 2);
+    const numColumns = Math.floor(availableWidth / avatarTotalWidth);
+
     const [loaded] = useFonts({
         "Fustat-Bold.ttf": require("../assets/fonts/Fustat-Bold.ttf"),
         "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
@@ -122,7 +131,7 @@ export default function ProfileScreen({ navigation }) {
     const handleSaveProfile = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${URL}/users/updateProfil`, { // ✅ Change l'URL
+            const response = await fetch(`${URL}/users/updateProfil`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -130,32 +139,21 @@ export default function ProfileScreen({ navigation }) {
                 body: JSON.stringify({
                     username: newUsername,
                     avatar: selectedAvatar,
-                    token: userData.token // ✅ Utilise token au lieu de userId
+                    userId: userData.userID
                 }),
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Échec de la mise à jour du profil');
+                throw new Error(errorData.message || 'Échec de la mise à jour du profil');
             }
 
             const updatedUserDataResponse = await response.json();
 
-            if (updatedUserDataResponse.result) { // ✅ Vérifier result
-                dispatch(updateUser({
-                    userData: {
-                        ...userData,
-                        username: newUsername,
-                        avatar: selectedAvatar
-                    }
-                }));
+            dispatch(updateUser({ userData: { ...userData, username: newUsername, avatar: selectedAvatar } }));
 
-                Alert.alert('Succès', 'Votre profil a été mis à jour !');
-                setIsEditModalVisible(false);
-            } else {
-                throw new Error(updatedUserDataResponse.error || 'Erreur de mise à jour');
-            }
-
+            Alert.alert('Succès', 'Votre profil a été mis à jour !');
+            setIsEditModalVisible(false);
         } catch (error) {
             console.error('Erreur lors de la sauvegarde du profil:', error);
             Alert.alert('Erreur', error.message || 'Une erreur est survenue lors de la mise à jour.');
@@ -608,96 +606,87 @@ export default function ProfileScreen({ navigation }) {
             </SafeAreaView>
 
             <Modal
-                animationType="fade"
+                animationType="slide"
                 transparent={true}
                 visible={isEditModalVisible}
                 onRequestClose={() => setIsEditModalVisible(false)}
             >
                 <View style={styles.centeredView}>
-                    <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFillObject} />
+                    <BlurView intensity={50} tint="light" style={styles.modalView}>
+                        <Text style={styles.modalTitle}>Modifier le Profil</Text>
 
-                    <LinearGradient
-                        colors={['#FFCC80', '#FFE0B2', '#FFF3E0']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.modalView}
-                    >
-                        <BlurView intensity={50} tint="light" style={styles.modalBlurBackground}>
-                            <Text style={styles.modalTitle}>Modifier le Profil</Text>
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Nom d'utilisateur :</Text>
+                            <TextInput
+                                style={styles.input}
+                                onChangeText={setNewUsername}
+                                value={newUsername}
+                                placeholder="Entrez votre nouveau nom d'utilisateur"
+                                placeholderTextColor="rgba(74, 74, 74, 0.6)"
+                                maxLength={20}
+                            />
+                        </View>
 
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>Nom d'utilisateur :</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    onChangeText={setNewUsername}
-                                    value={newUsername}
-                                    placeholder="Entrez votre nouveau nom d'utilisateur"
-                                    placeholderTextColor="#666"
-                                    maxLength={20}
+                        <View style={styles.avatarSectionContainer}>
+                            <Text style={styles.inputLabel}>Choisir un avatar :</Text>
+
+                            <View style={styles.currentAvatarContainer}>
+                                <Image
+                                    source={avatarImages[selectedAvatar]}
+                                    style={styles.currentSelectedAvatar}
                                 />
+                                <Text style={styles.currentAvatarText}>Avatar sélectionné</Text>
                             </View>
 
-                            <View style={styles.avatarSectionContainer}>
-                                <Text style={styles.inputLabel}>Choisir un avatar :</Text>
+                            <FlatList
+                                data={Object.keys(avatarImages)}
+                                keyExtractor={(item) => item}
+                                numColumns={4}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={styles.avatarFlatListContent}
+                                renderItem={({ item: avatarFileName }) => (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.avatarOptionFlat,
+                                            selectedAvatar === avatarFileName && styles.selectedAvatarOptionFlat
+                                        ]}
+                                        onPress={() => setSelectedAvatar(avatarFileName)}
+                                    >
+                                        <Image
+                                            source={avatarImages[avatarFileName]}
+                                            style={styles.avatarOptionImageFlat}
+                                        />
+                                        {selectedAvatar === avatarFileName && (
+                                            <View style={styles.selectedIndicator}>
+                                                <Text style={styles.checkIcon}>✓</Text>
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
 
-                                <View style={styles.currentAvatarContainer}>
-                                    <Image
-                                        source={avatarImages[selectedAvatar]}
-                                        style={styles.currentSelectedAvatar}
-                                    />
-                                    <Text style={styles.currentAvatarText}>Avatar sélectionné</Text>
-                                </View>
-
-                                <FlatList
-                                    data={Object.keys(avatarImages)}
-                                    keyExtractor={(item) => item}
-                                    numColumns={4}
-                                    showsVerticalScrollIndicator={false}
-                                    contentContainerStyle={styles.avatarFlatListContent}
-                                    renderItem={({ item: avatarFileName }) => (
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.avatarOptionFlat,
-                                                selectedAvatar === avatarFileName && styles.selectedAvatarOptionFlat
-                                            ]}
-                                            onPress={() => setSelectedAvatar(avatarFileName)}
-                                        >
-                                            <Image
-                                                source={avatarImages[avatarFileName]}
-                                                style={styles.avatarOptionImageFlat}
-                                            />
-                                            {selectedAvatar === avatarFileName && (
-                                                <View style={styles.selectedIndicator}>
-                                                    <Text style={styles.checkIcon}>✓</Text>
-                                                </View>
-                                            )}
-                                        </TouchableOpacity>
-                                    )}
-                                />
-                            </View>
-
-                            <View style={styles.buttonContainer}>
-                                <TouchableOpacity
-                                    style={[styles.button, styles.saveButton]}
-                                    onPress={handleSaveProfile}
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? (
-                                        <ActivityIndicator color="#fff" />
-                                    ) : (
-                                        <Text style={styles.buttonText}>Sauvegarder</Text>
-                                    )}
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.button, styles.cancelButton]}
-                                    onPress={() => setIsEditModalVisible(false)}
-                                    disabled={isLoading}
-                                >
-                                    <Text style={styles.buttonText}>Annuler</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </BlurView>
-                    </LinearGradient>
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                style={[styles.button, styles.saveButton]}
+                                onPress={handleSaveProfile}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator color="#FF9800" />
+                                ) : (
+                                    <Text style={styles.buttonText}>Sauvegarder</Text>
+                                )}
+                            </TouchableOpacity>
+                            {/* <TouchableOpacity
+                                style={[styles.button, styles.cancelButton]}
+                                onPress={() => setIsEditModalVisible(false)}
+                                disabled={isLoading}
+                            >
+                                <Text style={[styles.buttonText, { color: '#FF7043' }]}>Fermer</Text>
+                            </TouchableOpacity> */}
+                        </View>
+                    </BlurView>
                 </View>
             </Modal>
 
@@ -730,7 +719,7 @@ const styles = StyleSheet.create({
     profileHeaderWrapper: {
         width: '100%',
         maxWidth: 400,
-        // aspectRatio: 16 / 9,
+        minHeight: 280,
         borderRadius: 25,
         overflow: 'hidden',
         marginBottom: 30,
@@ -746,23 +735,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     profileHeaderBlur: {
-        flex: 1,
         width: '100%',
-        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        paddingVertical: 25,
+        paddingHorizontal: 20,
         borderRadius: 25,
     },
     avatarContainer: {
         position: 'relative',
-        marginBottom: 15,
-
+        marginBottom: 20,
+        alignItems: 'center',
     },
     avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
         borderWidth: 3,
         borderColor: '#FFCC80',
         marginBottom: 10,
@@ -1315,55 +1303,53 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
     },
     modalView: {
-        margin: 20,
-        borderRadius: 25,
-        padding: 25,
+        justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-        width: '95%',
-        maxWidth: 450,
-        height: '85%',
+        width: '90%',
+        padding: 45,
+        borderRadius: 30,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderWidth: 3,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: 'rgba(255, 240, 200, 1)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 40,
+        elevation: 60,
         overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.5)',
-    },
-    modalBlurBackground: {
-        ...StyleSheet.absoluteFillObject,
-        borderRadius: 25,
-        padding: 20,
+        maxHeight: '85%',
     },
     modalTitle: {
-        fontFamily: 'Fustat-ExtraBold.ttf',
-        fontSize: 26,
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 38,
         color: '#FF7043',
-        marginBottom: 20,
+        marginBottom: 50,
         textAlign: 'center',
-        textShadowColor: 'rgba(0, 0, 0, 0.1)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
+        textShadowColor: 'rgba(0, 0, 0, 0.15)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 3,
     },
     avatarSectionContainer: {
         width: '100%',
-        flex: 1,
+        maxHeight: 450,
         marginBottom: 20,
     },
     currentAvatarContainer: {
         alignItems: 'center',
         marginBottom: 15,
-        padding: 15,
+        padding: 20,
         backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        borderRadius: 15,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 152, 0, 0.4)',
+        borderRadius: 25,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: 'rgba(0, 0, 0, 0.18)',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 15,
     },
     currentSelectedAvatar: {
         width: 80,
@@ -1380,12 +1366,17 @@ const styles = StyleSheet.create({
     },
     avatarFlatListContent: {
         paddingVertical: 10,
-        alignItems: 'center',
+        // paddingHorizontal: 10,
+        minHeight: 300,
+    },
+    avatarRowStyle: {
+        justifyContent: 'space-around',
+        width: '100%',
     },
     avatarOptionFlat: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         margin: 8,
         borderWidth: 2,
         borderColor: 'rgba(255, 255, 255, 0.5)',
@@ -1408,9 +1399,9 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
     avatarOptionImageFlat: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
     },
     selectedIndicator: {
         position: 'absolute',
@@ -1431,7 +1422,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     inputContainer: {
-        width: '100%',
+        width: '95%',
         marginBottom: 15,
     },
     inputLabel: {
@@ -1440,51 +1431,56 @@ const styles = StyleSheet.create({
         color: '#4a4a4a',
         marginBottom: 8,
         alignSelf: 'flex-start',
+        marginLeft: '5%',
     },
     input: {
         width: '100%',
-        padding: 12,
+        height: 65,
+        paddingHorizontal: 25,
+        borderRadius: 35,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 152, 0, 0.4)',
-        borderRadius: 10,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
         fontFamily: 'Fustat-Regular.ttf',
-        fontSize: 16,
-        color: '#333',
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
+        fontSize: 18,
+        color: '#4a4a4a',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        shadowColor: 'rgba(0, 0, 0, 0.18)',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 15,
     },
     buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
         width: '100%',
-        marginTop: 10,
+        alignItems: 'center',
+        marginTop: 15,
     },
     button: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 25,
+        justifyContent: 'center',
         alignItems: 'center',
-        marginHorizontal: 8,
-        borderWidth: 1.5,
+        width: '80%',
+        height: 68,
+        borderRadius: 35,
+        marginVertical: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1.8,
         borderColor: 'rgba(255, 255, 255, 0.7)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
-        elevation: 7,
+        shadowColor: 'rgba(255, 240, 200, 0.9)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 25,
     },
     saveButton: {
-        backgroundColor: '#FF7043',
     },
     cancelButton: {
-        backgroundColor: '#9E9E9E',
     },
     buttonText: {
-        fontFamily: 'Fustat-Bold.ttf',
-        color: 'white',
-        fontSize: 16,
+        fontSize: 26,
+        fontFamily: 'Fustat-ExtraBold.ttf',
+        color: '#FF9800',
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
 });
