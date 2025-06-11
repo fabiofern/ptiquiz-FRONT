@@ -160,10 +160,20 @@ export default function ProfileScreen({ navigation }) {
     }
 
     const avatarImages = {
-        'avatar01.png': require('../assets/avatars/avatar01.png'), // Assurez-vous que les clés correspondent aux noms de fichiers dans `userData.avatar`
+        'avatar01.png': require('../assets/avatars/avatar01.png'),
         'avatar02.png': require('../assets/avatars/avatar02.png'),
         'avatar03.png': require('../assets/avatars/avatar03.png'),
-        // Ajoutez d'autres avatars selon vos besoins, en utilisant le nom de fichier comme clé
+        'avatar04.png': require('../assets/avatars/avatar04.png'),
+        'avatar05.png': require('../assets/avatars/avatar05.png'),
+        'avatar06.png': require('../assets/avatars/avatar06.png'),
+        'avatar07.png': require('../assets/avatars/avatar07.png'),
+        'avatar08.png': require('../assets/avatars/avatar08.png'),
+        'avatar09.png': require('../assets/avatars/avatar09.png'),
+        'avatar10.png': require('../assets/avatars/avatar10.png'),
+        'avatar11.png': require('../assets/avatars/avatar11.png'),
+        'avatar13.png': require('../assets/avatars/avatar13.png'),
+        'avatar14.png': require('../assets/avatars/avatar14.png'),
+        'avatar15.png': require('../assets/avatars/avatar15.png'),
     };
 
 
@@ -278,14 +288,14 @@ export default function ProfileScreen({ navigation }) {
                                 />
 
                                 {/* Badge de rang (Liquid Glass Wrapper) */}
-                                <View style={[styles.rankBadgeWrapper, { backgroundColor: userRank.color + '30', borderColor: userRank.color + '80' }]}>
+                                {/* <View style={[styles.rankBadgeWrapper, { backgroundColor: userRank.color + '30', borderColor: userRank.color + '80' }]}>
                                     <BlurView intensity={30} tint="light" style={styles.rankBadgeBlur}>
                                         <Text style={[styles.rankIcon, { color: userRank.color }]}>{userRank.icon}</Text>
                                         <Text style={[styles.rankText, { color: userRank.color }]}>
                                             {userRank.rank}
                                         </Text>
                                     </BlurView>
-                                </View>
+                                </View> */}
 
                                 {/* Titre actuel (Liquid Glass Wrapper) */}
                                 {currentTitle && (
@@ -635,17 +645,6 @@ export default function ProfileScreen({ navigation }) {
                             })}
                         </BlurView>
                     </View>
-
-                    {/* BOUTON DEBUG - UNIQUEMENT EN DÉVELOPPEMENT */}
-                    {__DEV__ && (
-                        <TouchableOpacity
-                            style={styles.debugButtonWrapper}
-                            onPress={() => console.log("Debug modal triggered")} // Remplacez par votre logique modale
-                        >
-                            <Text style={styles.debugButtonText}>🔧 Debug Géolocalisation</Text>
-                        </TouchableOpacity>
-                    )}
-                    {/* Bouton déconnexion */}
                     <TouchableOpacity style={styles.logoutButtonWrapper} onPress={handleLogout}>
                         <Text style={styles.logoutText}>Déconnexion</Text>
                     </TouchableOpacity>
@@ -1219,7 +1218,8 @@ const styles = StyleSheet.create({
         width: '90%',
         height: 60,
         borderRadius: 30,
-        marginTop: 30,
+        marginTop: 10,
+        marginBottom: 50,
         alignSelf: 'center',
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1.8,
