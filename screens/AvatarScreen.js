@@ -26,7 +26,7 @@ const { width, height } = Dimensions.get("window"); // Get screen dimensions
 const AuroraBackground = () => {
     // État pour savoir si les animations sont initialisées
     const [isReady, setIsReady] = useState(false);
-
+    
     // Initialisation des valeurs animées dans un useRef qui s'exécute une seule fois
     const blobs = useRef([]);
 

@@ -200,6 +200,7 @@ export default function LoginScreen({ navigation }) {
                         isLoggedIn: true,
                         userData: {
                             token: data.token,
+                            secureToken: data.secureToken,
                             userID: data._id,
                             email: email.trim().toLowerCase()
                         }
