@@ -139,7 +139,17 @@ export default function AvatarScreen({ navigation }) {
         require("../assets/avatars/avatar01.png"),
         require("../assets/avatars/avatar02.png"),
         require("../assets/avatars/avatar03.png"),
-        // Ajoutez d'autres avatars ici
+        require("../assets/avatars/avatar04.png"),
+        require("../assets/avatars/avatar05.png"),
+        require("../assets/avatars/avatar06.png"),
+        require("../assets/avatars/avatar07.png"),
+        require("../assets/avatars/avatar08.png"),
+        require("../assets/avatars/avatar09.png"),
+        require("../assets/avatars/avatar10.png"),
+        require("../assets/avatars/avatar11.png"),
+        require("../assets/avatars/avatar13.png"),
+        require("../assets/avatars/avatar14.png"),
+        require("../assets/avatars/avatar15.png"),
     ];
 
     const handleRegister = async () => {
