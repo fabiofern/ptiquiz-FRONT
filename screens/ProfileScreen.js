@@ -1,15 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import {
+import React, { useState, useEffect, useRef } from 'react'; // Ajout de useRef
+import { // Ajout de Dimensions et Animated
     StyleSheet, View, SafeAreaView, Text, TouchableOpacity,
-    ScrollView, Image, Alert
+    ScrollView, Image, Alert, ActivityIndicator, Dimensions, Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useDispatch, useSelector } from 'react-redux';
 import { resetUser } from '../redux/userSlice';
 import { RewardsService, MEDALS, TROPHIES, TITLES } from '../services/RewardsService';
-import { Modal } from 'react-native'; // si pas déjà importé
-import LocationDebugComponent from '../components/LocationDebugComponent';
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+// import { Modal } from 'react-native'; // Modal est déjà importé via React Native.
+// import LocationDebugComponent from '../components/LocationDebugComponent'; // Ce composant n'est pas fourni
+
+SplashScreen.preventAutoHideAsync();
+
+const { width, height } = Dimensions.get('window'); // Dimensions de l'écran
+
+// --- NOUVEAU COMPOSANT : FOND DYNAMIQUE "AURORA" ---
+const AuroraBackground = () => {
+    // État pour savoir si les animations sont initialisées
+    const [isReady, setIsReady] = useState(false);
+
+    // Initialisation des valeurs animées dans un useRef qui s'exécute une seule fois
+    const blobs = useRef([]);
+
+    // Initialiser les Animated.Value une seule fois après le premier rendu
+    useEffect(() => {
+        if (!isReady) {
+            blobs.current = [...Array(6)].map(() => ({
+                translateX: new Animated.Value(Math.random() * width),
+                translateY: new Animated.Value(Math.random() * height),
+                scale: new Animated.Value(0.5 + Math.random()),
+                opacity: new Animated.Value(0.2 + Math.random() * 0.3),
+                duration: 5000 + Math.random() * 5000,
+            }));
+            setIsReady(true);
+
+            // Démarrer les animations immédiatement après l'initialisation
+            blobs.current.forEach(blob => {
+                const animateBlob = () => {
+                    Animated.loop(
+                        Animated.parallel([
+                            Animated.timing(blob.translateX, {
+                                toValue: Math.random() * width,
+                                duration: blob.duration,
+                                useNativeDriver: true,
+                            }),
+                            Animated.timing(blob.translateY, {
+                                toValue: Math.random() * height,
+                                duration: blob.duration,
+                                useNativeDriver: true,
+                            }),
+                            Animated.timing(blob.scale, {
+                                toValue: 0.8 + Math.random() * 0.7,
+                                duration: blob.duration,
+                                useNativeDriver: true,
+                            }),
+                            Animated.timing(blob.opacity, {
+                                toValue: 0.2 + Math.random() * 0.3,
+                                duration: blob.duration,
+                                useNativeDriver: true,
+                            }),
+                        ])
+                    ).start();
+                };
+                animateBlob();
+            });
+        }
+    }, [isReady]); // Déclencher une seule fois
+
+
+    // Couleurs de la palette "Rayon de Soleil" avec opacité faible
+    const auroraColors = [
+        'rgba(255, 152, 0, 0.2)',
+        'rgba(255, 112, 67, 0.2)',
+        'rgba(255, 204, 128, 0.2)',
+        'rgba(255, 240, 200, 0.2)',
+        'rgba(255, 224, 178, 0.2)',
+    ];
+
+    if (!isReady) {
+        return null; // Ne rien rendre tant que les animations ne sont pas prêtes
+    }
+
+    return (
+        <View style={StyleSheet.absoluteFillObject}>
+            {blobs.current.map((blob, index) => (
+                <Animated.View
+                    key={index}
+                    style={{
+                        position: 'absolute',
+                        width: width * 0.6,
+                        height: width * 0.6,
+                        borderRadius: width * 0.3,
+                        backgroundColor: auroraColors[index % auroraColors.length],
+                        transform: [
+                            { translateX: blob.translateX },
+                            { translateY: blob.translateY },
+                            { scale: blob.scale }
+                        ],
+                        opacity: blob.opacity,
+                    }}
+                />
+            ))}
+        </View>
+    );
+};
+// --- FIN DU COMPOSANT FOND DYNAMIQUE "AURORA" ---
+
 
 export default function ProfileScreen({ navigation }) {
     const URL = process.env.EXPO_PUBLIC_BACKEND_URL
@@ -17,7 +116,21 @@ export default function ProfileScreen({ navigation }) {
     const { userData, isLoggedIn } = useSelector((state) => state.user);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    // 🎯 Forcer le rafraîchissement quand on focus sur l'écran
+    // Chargement des polices (assurez-vous que tous les fichiers sont dans assets/fonts)
+    const [loaded] = useFonts({
+        "Fustat-Bold.ttf": require("../assets/fonts/Fustat-Bold.ttf"),
+        "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
+        "Fustat-Regular.ttf": require("../assets/fonts/Fustat-Regular.ttf"),
+        "Fustat-SemiBold.ttf": require("../assets/fonts/Fustat-SemiBold.ttf"),
+    });
+
+    useEffect(() => {
+        if (loaded) {
+            SplashScreen.hideAsync();
+        }
+    }, [loaded]);
+
+    // Force le rafraîchissement quand on focus sur l'écran
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             setRefreshKey(prev => prev + 1);
@@ -25,10 +138,16 @@ export default function ProfileScreen({ navigation }) {
         return unsubscribe;
     }, [navigation]);
 
+    // Si les polices ne sont pas encore chargées ou non connecté, ne rien rendre ou afficher un message simple
+    if (!loaded) {
+        return null;
+    }
+
     if (!isLoggedIn || !userData) {
         return (
             <LinearGradient
-                colors={['#eeddfd', '#d5c3f3']}
+                // Dégradé de couleurs pour le fond : Rayon de Soleil
+                colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.container}
@@ -41,13 +160,14 @@ export default function ProfileScreen({ navigation }) {
     }
 
     const avatarImages = {
-        'avatar1': require('../assets/avatars/avatar01.png'),
-        'avatar2': require('../assets/avatars/avatar02.png'),
-        'avatar3': require('../assets/avatars/avatar03.png'),
-        // Ajoutez d'autres avatars selon vos besoins
+        'avatar01.png': require('../assets/avatars/avatar01.png'), // Assurez-vous que les clés correspondent aux noms de fichiers dans `userData.avatar`
+        'avatar02.png': require('../assets/avatars/avatar02.png'),
+        'avatar03.png': require('../assets/avatars/avatar03.png'),
+        // Ajoutez d'autres avatars selon vos besoins, en utilisant le nom de fichier comme clé
     };
 
-    // 🎯 CALCUL DU SCORE TOTAL RÉEL (points obtenus, pas total possible)
+
+    // CALCUL DU SCORE TOTAL RÉEL (points obtenus, pas total possible)
     const calculateUserTotalScore = () => {
         const completedQuizzes = userData?.completedQuizzes || {};
         return Object.values(completedQuizzes).reduce((total, quiz) => {
@@ -55,14 +175,14 @@ export default function ProfileScreen({ navigation }) {
         }, 0);
     };
 
-    // 🎯 STATISTIQUES MISES À JOUR
+    // STATISTIQUES MISES À JOUR
     const stats = {
         totalQuizzes: Object.keys(userData.completedQuizzes || {}).length,
         perfectQuizzes: Object.values(userData.completedQuizzes || {})
             .filter(quiz => quiz.percentage === 100).length,
         excellentQuizzes: Object.values(userData.completedQuizzes || {})
             .filter(quiz => quiz.percentage >= 80 && quiz.percentage < 100).length,
-        totalScore: calculateUserTotalScore(), // 🎯 Score réel obtenu
+        totalScore: calculateUserTotalScore(), // Score réel obtenu
         averageScore: Object.keys(userData.completedQuizzes || {}).length > 0
             ? Math.round(Object.values(userData.completedQuizzes || {})
                 .reduce((sum, quiz) => sum + (quiz.percentage || 0), 0) /
@@ -74,22 +194,22 @@ export default function ProfileScreen({ navigation }) {
         titles: (userData.rewards?.titles || []).length
     };
 
-    // 🎯 RANG BASÉ SUR LE SCORE ET LES PERFORMANCES
+    // RANG BASÉ SUR LE SCORE ET LES PERFORMANCES
     const getUserRank = () => {
         const { perfectQuizzes, totalQuizzes, averageScore } = stats;
 
         if (perfectQuizzes >= 10 && averageScore >= 95) {
-            return { rank: 'Maître Suprême', icon: '👑', color: '#FFD700' };
+            return { rank: 'Maître Suprême', icon: '👑', color: '#FFD700' }; // Or
         } else if (perfectQuizzes >= 5 && averageScore >= 90) {
-            return { rank: 'Expert', icon: '🏆', color: '#C0C0C0' };
+            return { rank: 'Expert', icon: '🏆', color: '#C0C0C0' }; // Argent
         } else if (totalQuizzes >= 10 && averageScore >= 80) {
-            return { rank: 'Avancé', icon: '⭐', color: '#CD7F32' };
+            return { rank: 'Avancé', icon: '⭐', color: '#CD7F32' }; // Bronze
         } else if (totalQuizzes >= 5 && averageScore >= 70) {
-            return { rank: 'Intermédiaire', icon: '🌟', color: '#4CAF50' };
+            return { rank: 'Intermédiaire', icon: '🌟', color: '#FF9800' }; // Orange vibrant
         } else if (totalQuizzes >= 3) {
-            return { rank: 'Novice', icon: '🌱', color: '#2196F3' };
+            return { rank: 'Novice', icon: '🌱', color: '#4CAF50' }; // Vert
         } else {
-            return { rank: 'Débutant', icon: '🎯', color: '#9E9E9E' };
+            return { rank: 'Débutant', icon: '🎯', color: '#9E9E9E' }; // Gris
         }
     };
 
@@ -112,8 +232,10 @@ export default function ProfileScreen({ navigation }) {
         );
     };
 
+    // Cette fonction ne devrait pas être un composant React
+    // Elle renvoie une View stylisée pour être utilisée dans la ScrollView
     const renderRewardItem = (rewardId, rewardData, type) => (
-        <View key={rewardId} style={styles.rewardItem}>
+        <View key={rewardId} style={styles.rewardItemInner}> {/* Modifié pour le style interne */}
             <Text style={styles.rewardIcon}>{rewardData.icon}</Text>
             <View style={styles.rewardInfo}>
                 <Text style={styles.rewardName}>{rewardData.name}</Text>
@@ -123,338 +245,408 @@ export default function ProfileScreen({ navigation }) {
         </View>
     );
 
-    // 🎯 PERFORMANCE PAR COULEUR
+
+    // PERFORMANCE PAR COULEUR
     const getPerformanceColor = (percentage) => {
-        if (percentage === 100) return '#4CAF50'; // Vert
-        if (percentage >= 80) return '#FF9800'; // Orange
-        if (percentage >= 70) return '#2196F3'; // Bleu
-        return '#F44336'; // Rouge
+        if (percentage === 100) return '#4CAF50'; // Vert (Parfait)
+        if (percentage >= 80) return '#FF9800'; // Orange (Excellent)
+        if (percentage >= 70) return '#64B5F6'; // Bleu (Bon) - Couleur de la palette Rayon de Soleil
+        return '#F44336'; // Rouge (Besoin d'amélioration)
     };
 
     return (
         <LinearGradient
-            colors={['#eeddfd', '#d5c3f3']}
+            // Dégradé de couleurs pour le fond : Rayon de Soleil
+            colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.container}
         >
+            {/* Le fond dynamique Aurora est ici, derrière le reste du contenu */}
+            <AuroraBackground />
+
             <SafeAreaView style={styles.container}>
                 <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
 
-                    {/* 🎯 EN-TÊTE PROFIL AMÉLIORÉ */}
-                    <BlurView intensity={50} style={styles.profileHeader}>
-                        <View style={styles.avatarContainer}>
-                            <Image
-                                source={avatarImages[userData.avatar] || avatarImages['avatar1']}
-                                style={styles.avatar}
-                            />
+                    {/* EN-TÊTE PROFIL AMÉLIORÉ (Liquid Glass Wrapper) */}
+                    <View style={styles.profileHeaderWrapper}>
+                        <BlurView intensity={50} tint="light" style={styles.profileHeaderBlur}>
+                            <View style={styles.avatarContainer}>
+                                <Image
+                                    source={avatarImages[userData.avatar] || avatarImages['avatar01.png']}
+                                    style={styles.avatar}
+                                />
 
-                            {/* 🎯 Badge de rang */}
-                            <View style={[styles.rankBadge, { backgroundColor: userRank.color + '20' }]}>
-                                <Text style={styles.rankIcon}>{userRank.icon}</Text>
-                                <Text style={[styles.rankText, { color: userRank.color }]}>
-                                    {userRank.rank}
-                                </Text>
-                            </View>
-
-                            {/* Titre actuel */}
-                            {currentTitle && (
-                                <View style={styles.titleBadge}>
-                                    <Text style={styles.titleIcon}>{currentTitle.icon}</Text>
-                                    <Text style={styles.titleText}>{currentTitle.name}</Text>
+                                {/* Badge de rang (Liquid Glass Wrapper) */}
+                                <View style={[styles.rankBadgeWrapper, { backgroundColor: userRank.color + '30', borderColor: userRank.color + '80' }]}>
+                                    <BlurView intensity={30} tint="light" style={styles.rankBadgeBlur}>
+                                        <Text style={[styles.rankIcon, { color: userRank.color }]}>{userRank.icon}</Text>
+                                        <Text style={[styles.rankText, { color: userRank.color }]}>
+                                            {userRank.rank}
+                                        </Text>
+                                    </BlurView>
                                 </View>
-                            )}
-                        </View>
-                        <Text style={styles.username}>{userData.username}</Text>
-                        <Text style={styles.email}>{userData.email}</Text>
-                        <Text style={styles.totalScore}>🏆 {stats.totalScore} points obtenus</Text>
-                        <Text style={styles.averageScore}>📊 Moyenne: {stats.averageScore}%</Text>
-                    </BlurView>
 
-                    {/* 🎯 STATISTIQUES DÉTAILLÉES */}
-                    <BlurView intensity={50} style={styles.statsContainer}>
-                        <Text style={styles.sectionTitle}>📊 STATISTIQUES DÉTAILLÉES</Text>
-                        <View style={styles.statsGrid}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>{stats.totalQuizzes}</Text>
-                                <Text style={styles.statLabel}>Quiz terminés</Text>
+                                {/* Titre actuel (Liquid Glass Wrapper) */}
+                                {currentTitle && (
+                                    <View style={[styles.titleBadgeWrapper, { backgroundColor: 'rgba(255, 112, 67, 0.2)', borderColor: 'rgba(255, 112, 67, 0.7)' }]}>
+                                        <BlurView intensity={30} tint="light" style={styles.titleBadgeBlur}>
+                                            <Text style={[styles.titleIcon, { color: '#FF7043' }]}>{currentTitle.icon}</Text>
+                                            <Text style={[styles.titleText, { color: '#FF7043' }]}>{currentTitle.name}</Text>
+                                        </BlurView>
+                                    </View>
+                                )}
                             </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statNumber, { color: '#4CAF50' }]}>
-                                    {stats.perfectQuizzes}
-                                </Text>
-                                <Text style={styles.statLabel}>Quiz parfaits (100%)</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statNumber, { color: '#FF9800' }]}>
-                                    {stats.excellentQuizzes}
-                                </Text>
-                                <Text style={styles.statLabel}>Quiz excellents (80-99%)</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statNumber, { color: '#2196F3' }]}>
-                                    {stats.averageScore}%
-                                </Text>
-                                <Text style={styles.statLabel}>Score moyen</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statNumber}>{stats.unlockedQuizzes}</Text>
-                                <Text style={styles.statLabel}>Quiz débloqués</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statNumber, { color: '#9C27B0' }]}>
-                                    {stats.medals + stats.trophies + stats.titles}
-                                </Text>
-                                <Text style={styles.statLabel}>Récompenses</Text>
-                            </View>
-                        </View>
-                    </BlurView>
+                            <Text style={styles.username}>{userData.username}</Text>
+                            <Text style={styles.email}>{userData.email}</Text>
+                            <Text style={styles.totalScore}>🏆 {stats.totalScore} points obtenus</Text>
+                            <Text style={styles.averageScore}>📊 Moyenne: {stats.averageScore}%</Text>
+                        </BlurView>
+                    </View>
 
-                    {/* 🎯 HISTORIQUE DES QUIZ RÉCENTS */}
+                    {/* STATISTIQUES DÉTAILLÉES (Liquid Glass Wrapper) */}
+                    <View style={styles.statsContainerWrapper}>
+                        <BlurView intensity={50} tint="light" style={styles.statsContainerBlur}>
+                            <Text style={styles.sectionTitle}>📊 STATISTIQUES DÉTAILLÉES</Text>
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={styles.statNumber}>{stats.totalQuizzes}</Text>
+                                        <Text style={styles.statLabel}>Quiz terminés</Text>
+                                    </BlurView>
+                                </View>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#4CAF50' }]}>
+                                            {stats.perfectQuizzes}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Quiz parfaits (100%)</Text>
+                                    </BlurView>
+                                </View>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#FF9800' }]}>
+                                            {stats.excellentQuizzes}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Quiz excellents (80-99%)</Text>
+                                    </BlurView>
+                                </View>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#64B5F6' }]}>
+                                            {stats.averageScore}%
+                                        </Text>
+                                        <Text style={styles.statLabel}>Score moyen</Text>
+                                    </BlurView>
+                                </View>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={styles.statNumber}>{stats.unlockedQuizzes}</Text>
+                                        <Text style={styles.statLabel}>Quiz débloqués</Text>
+                                    </BlurView>
+                                </View>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#FF7043' }]}> {/* Couleur Rayon de Soleil */}
+                                            {stats.medals + stats.trophies + stats.titles}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Récompenses</Text>
+                                    </BlurView>
+                                </View>
+                            </View>
+                        </BlurView>
+                    </View>
+
+                    {/* HISTORIQUE DES QUIZ RÉCENTS (Liquid Glass Wrapper) */}
                     {Object.keys(userData.completedQuizzes || {}).length > 0 && (
-                        <BlurView intensity={50} style={styles.recentQuizzesContainer}>
-                            <Text style={styles.sectionTitle}>📚 QUIZ RÉCENTS</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                <View style={styles.recentQuizzesRow}>
-                                    {Object.values(userData.completedQuizzes || {})
-                                        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-                                        .slice(0, 5)
-                                        .map((quiz, index) => (
-                                            <View key={index} style={styles.recentQuizItem}>
-                                                <View style={[
-                                                    styles.performanceIndicator,
-                                                    { backgroundColor: getPerformanceColor(quiz.percentage) }
-                                                ]}>
-                                                    <Text style={styles.performancePercentage}>
-                                                        {quiz.percentage}%
-                                                    </Text>
+                        <View style={styles.recentQuizzesContainerWrapper}>
+                            <BlurView intensity={50} tint="light" style={styles.recentQuizzesContainerBlur}>
+                                <Text style={styles.sectionTitle}>📚 QUIZ RÉCENTS</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentQuizzesScrollContent}>
+                                    <View style={styles.recentQuizzesRow}>
+                                        {Object.values(userData.completedQuizzes || {})
+                                            .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+                                            .slice(0, 5)
+                                            .map((quiz, index) => (
+                                                <View key={index} style={styles.recentQuizItemWrapper}>
+                                                    <BlurView intensity={30} tint="light" style={styles.recentQuizItemBlur}>
+                                                        <View style={[
+                                                            styles.performanceIndicator,
+                                                            { backgroundColor: getPerformanceColor(quiz.percentage) }
+                                                        ]}>
+                                                            <Text style={styles.performancePercentage}>
+                                                                {quiz.percentage}%
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={styles.recentQuizName} numberOfLines={2}>
+                                                            {quiz.name}
+                                                        </Text>
+                                                        <Text style={styles.recentQuizScore}>
+                                                            {quiz.score}/{quiz.totalPoints} pts
+                                                        </Text>
+                                                        <Text style={styles.recentQuizBadge}>
+                                                            {quiz.percentage === 100 ? '🏆' :
+                                                                quiz.percentage >= 80 ? '⭐' :
+                                                                    quiz.percentage >= 70 ? '👍' : '💪'}
+                                                        </Text>
+                                                    </BlurView>
                                                 </View>
-                                                <Text style={styles.recentQuizName} numberOfLines={2}>
-                                                    {quiz.name}
-                                                </Text>
-                                                <Text style={styles.recentQuizScore}>
-                                                    {quiz.score}/{quiz.totalPoints} pts
-                                                </Text>
-                                                <Text style={styles.recentQuizBadge}>
-                                                    {quiz.percentage === 100 ? '🏆' :
-                                                        quiz.percentage >= 80 ? '⭐' :
-                                                            quiz.percentage >= 70 ? '👍' : '💪'}
-                                                </Text>
-                                            </View>
-                                        ))
-                                    }
-                                </View>
-                            </ScrollView>
-                        </BlurView>
+                                            ))
+                                        }
+                                    </View>
+                                </ScrollView>
+                            </BlurView>
+                        </View>
                     )}
 
-                    {/* Prochaine récompense */}
+                    {/* Prochaine récompense (Liquid Glass Wrapper) */}
                     {nextReward && (
-                        <BlurView intensity={50} style={styles.nextRewardContainer}>
-                            <Text style={styles.sectionTitle}>🎯 PROCHAINE RÉCOMPENSE</Text>
-                            <View style={styles.nextRewardItem}>
-                                <Text style={styles.nextRewardIcon}>{nextReward.icon}</Text>
-                                <View style={styles.nextRewardInfo}>
-                                    <Text style={styles.nextRewardName}>{nextReward.name}</Text>
-                                    <View style={styles.progressBar}>
-                                        <View
-                                            style={[
-                                                styles.progressFill,
-                                                { width: `${nextReward.percentage}%` }
-                                            ]}
-                                        />
+                        <View style={styles.nextRewardContainerWrapper}>
+                            <BlurView intensity={50} tint="light" style={styles.nextRewardContainerBlur}>
+                                <Text style={styles.sectionTitle}>🎯 PROCHAINE RÉCOMPENSE</Text>
+                                <View style={styles.nextRewardItem}>
+                                    <Text style={styles.nextRewardIcon}>{nextReward.icon}</Text>
+                                    <View style={styles.nextRewardInfo}>
+                                        <Text style={styles.nextRewardName}>{nextReward.name}</Text>
+                                        <View style={styles.progressBar}>
+                                            <View
+                                                style={[
+                                                    styles.progressFill,
+                                                    { width: `${nextReward.percentage}%`, backgroundColor: '#FF9800' } // Couleur de la palette
+                                                ]}
+                                            />
+                                        </View>
+                                        <Text style={styles.progressText}>
+                                            {nextReward.current}/{nextReward.required}
+                                        </Text>
                                     </View>
-                                    <Text style={styles.progressText}>
-                                        {nextReward.current}/{nextReward.required}
-                                    </Text>
                                 </View>
-                            </View>
-                        </BlurView>
+                            </BlurView>
+                        </View>
                     )}
 
-                    {/* 🏅 MÉDAILLES */}
-                    <BlurView intensity={50} style={styles.rewardsContainer}>
-                        <Text style={styles.sectionTitle}>🏅 MÉDAILLES ({stats.medals})</Text>
-                        {stats.medals > 0 ? (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                <View style={styles.rewardsRow}>
-                                    {(userData.rewards?.medals || []).map(medalId => {
-                                        const medal = Object.values(MEDALS).find(m => m.id === medalId);
-                                        return medal ? renderRewardItem(medalId, medal, 'medal') : null;
-                                    })}
-                                </View>
-                            </ScrollView>
-                        ) : (
-                            <Text style={styles.noRewardsText}>
-                                Réussis 5 quiz avec au moins 80% dans un même thème pour débloquer ta première médaille !
-                            </Text>
-                        )}
-                    </BlurView>
+                    {/* MÉDAILLES (Liquid Glass Wrapper) */}
+                    <View style={styles.rewardsContainerWrapper}>
+                        <BlurView intensity={50} tint="light" style={styles.rewardsContainerBlur}>
+                            <Text style={styles.sectionTitle}>🏅 MÉDAILLES ({stats.medals})</Text>
+                            {stats.medals > 0 ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rewardsScrollContent}>
+                                    <View style={styles.rewardsRow}>
+                                        {(userData.rewards?.medals || []).map(medalId => {
+                                            const medal = Object.values(MEDALS).find(m => m.id === medalId);
+                                            return medal ? (
+                                                <View key={medalId} style={styles.rewardItemWrapper}>
+                                                    <BlurView intensity={30} tint="light" style={styles.rewardItemBlur}>
+                                                        <Text style={styles.rewardIcon}>{medal.icon}</Text>
+                                                        <View style={styles.rewardInfo}>
+                                                            <Text style={styles.rewardName}>{medal.name}</Text>
+                                                            <Text style={styles.rewardDesc}>{medal.description}</Text>
+                                                            <Text style={styles.rewardPoints}>+{medal.points} points</Text>
+                                                        </View>
+                                                    </BlurView>
+                                                </View>
+                                            ) : null;
+                                        })}
+                                    </View>
+                                </ScrollView>
+                            ) : (
+                                <Text style={styles.noRewardsText}>
+                                    Réussis 5 quiz avec au moins 80% dans un même thème pour débloquer ta première médaille !
+                                </Text>
+                            )}
+                        </BlurView>
+                    </View>
 
-                    {/* 🏆 COUPES */}
-                    <BlurView intensity={50} style={styles.rewardsContainer}>
-                        <Text style={styles.sectionTitle}>🏆 COUPES ({stats.trophies})</Text>
-                        {stats.trophies > 0 ? (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                <View style={styles.rewardsRow}>
-                                    {(userData.rewards?.trophies || []).map(trophyId => {
-                                        const trophy = Object.values(TROPHIES).find(t => t.id === trophyId);
-                                        return trophy ? renderRewardItem(trophyId, trophy, 'trophy') : null;
-                                    })}
-                                </View>
-                            </ScrollView>
-                        ) : (
-                            <Text style={styles.noRewardsText}>
-                                Termine tous les quiz d'un thème dans une ville avec au moins 80% pour gagner une coupe !
-                            </Text>
-                        )}
-                    </BlurView>
+                    {/* COUPES (Liquid Glass Wrapper) */}
+                    <View style={styles.rewardsContainerWrapper}> {/* Réutilise le wrapper car même style */}
+                        <BlurView intensity={50} tint="light" style={styles.rewardsContainerBlur}>
+                            <Text style={styles.sectionTitle}>🏆 COUPES ({stats.trophies})</Text>
+                            {stats.trophies > 0 ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rewardsScrollContent}>
+                                    <View style={styles.rewardsRow}>
+                                        {(userData.rewards?.trophies || []).map(trophyId => {
+                                            const trophy = Object.values(TROPHIES).find(t => t.id === trophyId);
+                                            return trophy ? (
+                                                <View key={trophyId} style={styles.rewardItemWrapper}>
+                                                    <BlurView intensity={30} tint="light" style={styles.rewardItemBlur}>
+                                                        <Text style={styles.rewardIcon}>{trophy.icon}</Text>
+                                                        <View style={styles.rewardInfo}>
+                                                            <Text style={styles.rewardName}>{trophy.name}</Text>
+                                                            <Text style={styles.rewardDesc}>{trophy.description}</Text>
+                                                            <Text style={styles.rewardPoints}>+{trophy.points} points</Text>
+                                                        </View>
+                                                    </BlurView>
+                                                </View>
+                                            ) : null;
+                                        })}
+                                    </View>
+                                </ScrollView>
+                            ) : (
+                                <Text style={styles.noRewardsText}>
+                                    Termine tous les quiz d'un thème dans une ville avec au moins 80% pour gagner une coupe !
+                                </Text>
+                            )}
+                        </BlurView>
+                    </View>
 
-                    {/* 👑 TITRES */}
-                    <BlurView intensity={50} style={styles.rewardsContainer}>
-                        <Text style={styles.sectionTitle}>👑 TITRES ({stats.titles})</Text>
-                        {stats.titles > 0 ? (
-                            <View style={styles.titlesGrid}>
-                                {(userData.rewards?.titles || []).map(titleId => {
-                                    const title = Object.values(TITLES).find(t => t.id === titleId);
-                                    if (!title) return null;
+                    {/* TITRES (Liquid Glass Wrapper) */}
+                    <View style={styles.rewardsContainerWrapper}> {/* Réutilise le wrapper */}
+                        <BlurView intensity={50} tint="light" style={styles.rewardsContainerBlur}>
+                            <Text style={styles.sectionTitle}>👑 TITRES ({stats.titles})</Text>
+                            {stats.titles > 0 ? (
+                                <View style={styles.titlesGrid}>
+                                    {(userData.rewards?.titles || []).map(titleId => {
+                                        const title = Object.values(TITLES).find(t => t.id === titleId);
+                                        if (!title) return null;
 
-                                    return (
-                                        <View key={titleId} style={[
-                                            styles.titleItem,
-                                            currentTitle?.id === titleId && styles.currentTitleItem
-                                        ]}>
-                                            <Text style={styles.titleItemIcon}>{title.icon}</Text>
-                                            <Text style={styles.titleItemName}>{title.name}</Text>
-                                            <View style={styles.prestigeLevel}>
-                                                {Array.from({ length: title.prestigeLevel }, (_, i) => (
-                                                    <Text key={i} style={styles.prestigeStar}>⭐</Text>
-                                                ))}
+                                        return (
+                                            <View key={titleId} style={styles.titleItemWrapper}>
+                                                <BlurView intensity={30} tint="light" style={[
+                                                    styles.titleItemBlur,
+                                                    currentTitle?.id === titleId && styles.currentTitleItemBlur
+                                                ]}>
+                                                    <Text style={styles.titleItemIcon}>{title.icon}</Text>
+                                                    <Text style={styles.titleItemName}>{title.name}</Text>
+                                                    <View style={styles.prestigeLevel}>
+                                                        {Array.from({ length: title.prestigeLevel }, (_, i) => (
+                                                            <Text key={i} style={styles.prestigeStar}>⭐</Text>
+                                                        ))}
+                                                    </View>
+                                                    {currentTitle?.id === titleId && (
+                                                        <Text style={styles.currentTitleLabel}>TITRE ACTUEL</Text>
+                                                    )}
+                                                </BlurView>
                                             </View>
-                                            {currentTitle?.id === titleId && (
-                                                <Text style={styles.currentTitleLabel}>TITRE ACTUEL</Text>
+                                        );
+                                    })}
+                                </View>
+                            ) : (
+                                <Text style={styles.noRewardsText}>
+                                    Accomplis des exploits extraordinaires avec 100% pour débloquer des titres prestigieux !
+                                </Text>
+                            )}
+                        </BlurView>
+                    </View>
+
+                    {/* Toutes les récompenses disponibles (Liquid Glass Wrapper) */}
+                    <View style={styles.allRewardsContainerWrapper}>
+                        <BlurView intensity={50} tint="light" style={styles.allRewardsContainerBlur}>
+                            <Text style={styles.sectionTitle}>🎁 TOUTES LES RÉCOMPENSES</Text>
+
+                            {/* Médailles disponibles */}
+                            <Text style={styles.subSectionTitle}>Médailles à débloquer (80%+ requis):</Text>
+                            {Object.values(MEDALS).map(medal => {
+                                const isUnlocked = (userData.rewards?.medals || []).includes(medal.id);
+                                return (
+                                    <View key={medal.id} style={styles.availableRewardItemWrapper}>
+                                        <BlurView intensity={20} tint="light" style={[
+                                            styles.availableRewardItemBlur,
+                                            isUnlocked && styles.unlockedRewardItemBlur
+                                        ]}>
+                                            <Text style={styles.availableRewardIcon}>
+                                                {isUnlocked ? medal.icon : '🔒'}
+                                            </Text>
+                                            <View style={styles.availableRewardInfo}>
+                                                <Text style={[
+                                                    styles.availableRewardName,
+                                                    isUnlocked && styles.unlockedRewardName
+                                                ]}>
+                                                    {medal.name}
+                                                </Text>
+                                                <Text style={styles.availableRewardDesc}>
+                                                    {medal.description}
+                                                </Text>
+                                            </View>
+                                            {isUnlocked && (
+                                                <Text style={styles.unlockedBadge}>✅</Text>
                                             )}
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        ) : (
-                            <Text style={styles.noRewardsText}>
-                                Accomplis des exploits extraordinaires avec 100% pour débloquer des titres prestigieux !
-                            </Text>
-                        )}
-                    </BlurView>
-
-                    {/* Toutes les récompenses disponibles */}
-                    <BlurView intensity={50} style={styles.allRewardsContainer}>
-                        <Text style={styles.sectionTitle}>🎁 TOUTES LES RÉCOMPENSES</Text>
-
-                        {/* Médailles disponibles */}
-                        <Text style={styles.subSectionTitle}>Médailles à débloquer (80%+ requis):</Text>
-                        {Object.values(MEDALS).map(medal => {
-                            const isUnlocked = (userData.rewards?.medals || []).includes(medal.id);
-                            return (
-                                <View key={medal.id} style={[
-                                    styles.availableRewardItem,
-                                    isUnlocked && styles.unlockedRewardItem
-                                ]}>
-                                    <Text style={styles.availableRewardIcon}>
-                                        {isUnlocked ? medal.icon : '🔒'}
-                                    </Text>
-                                    <View style={styles.availableRewardInfo}>
-                                        <Text style={[
-                                            styles.availableRewardName,
-                                            isUnlocked && styles.unlockedRewardName
-                                        ]}>
-                                            {medal.name}
-                                        </Text>
-                                        <Text style={styles.availableRewardDesc}>
-                                            {medal.description}
-                                        </Text>
+                                        </BlurView>
                                     </View>
-                                    {isUnlocked && (
-                                        <Text style={styles.unlockedBadge}>✅</Text>
-                                    )}
-                                </View>
-                            );
-                        })}
+                                );
+                            })}
 
-                        {/* Coupes disponibles */}
-                        <Text style={styles.subSectionTitle}>Coupes à débloquer (80%+ requis):</Text>
-                        {Object.values(TROPHIES).map(trophy => {
-                            const isUnlocked = (userData.rewards?.trophies || []).includes(trophy.id);
-                            return (
-                                <View key={trophy.id} style={[
-                                    styles.availableRewardItem,
-                                    isUnlocked && styles.unlockedRewardItem
-                                ]}>
-                                    <Text style={styles.availableRewardIcon}>
-                                        {isUnlocked ? trophy.icon : '🔒'}
-                                    </Text>
-                                    <View style={styles.availableRewardInfo}>
-                                        <Text style={[
-                                            styles.availableRewardName,
-                                            isUnlocked && styles.unlockedRewardName
+                            {/* Coupes disponibles */}
+                            <Text style={styles.subSectionTitle}>Coupes à débloquer (80%+ requis):</Text>
+                            {Object.values(TROPHIES).map(trophy => {
+                                const isUnlocked = (userData.rewards?.trophies || []).includes(trophy.id);
+                                return (
+                                    <View key={trophy.id} style={styles.availableRewardItemWrapper}>
+                                        <BlurView intensity={20} tint="light" style={[
+                                            styles.availableRewardItemBlur,
+                                            isUnlocked && styles.unlockedRewardItemBlur
                                         ]}>
-                                            {trophy.name}
-                                        </Text>
-                                        <Text style={styles.availableRewardDesc}>
-                                            {trophy.description}
-                                        </Text>
+                                            <Text style={styles.availableRewardIcon}>
+                                                {isUnlocked ? trophy.icon : '🔒'}
+                                            </Text>
+                                            <View style={styles.availableRewardInfo}>
+                                                <Text style={[
+                                                    styles.availableRewardName,
+                                                    isUnlocked && styles.unlockedRewardName
+                                                ]}>
+                                                    {trophy.name}
+                                                </Text>
+                                                <Text style={styles.availableRewardDesc}>
+                                                    {trophy.description}
+                                                </Text>
+                                            </View>
+                                            {isUnlocked && (
+                                                <Text style={styles.unlockedBadge}>✅</Text>
+                                            )}
+                                        </BlurView>
                                     </View>
-                                    {isUnlocked && (
-                                        <Text style={styles.unlockedBadge}>✅</Text>
-                                    )}
-                                </View>
-                            );
-                        })}
+                                );
+                            })}
 
-                        {/* Titres disponibles */}
-                        <Text style={styles.subSectionTitle}>Titres à débloquer (100% requis):</Text>
-                        {Object.values(TITLES).map(title => {
-                            const isUnlocked = (userData.rewards?.titles || []).includes(title.id);
-                            return (
-                                <View key={title.id} style={[
-                                    styles.availableRewardItem,
-                                    isUnlocked && styles.unlockedRewardItem
-                                ]}>
-                                    <Text style={styles.availableRewardIcon}>
-                                        {isUnlocked ? title.icon : '🔒'}
-                                    </Text>
-                                    <View style={styles.availableRewardInfo}>
-                                        <Text style={[
-                                            styles.availableRewardName,
-                                            isUnlocked && styles.unlockedRewardName
+                            {/* Titres disponibles */}
+                            <Text style={styles.subSectionTitle}>Titres à débloquer (100% requis):</Text>
+                            {Object.values(TITLES).map(title => {
+                                const isUnlocked = (userData.rewards?.titles || []).includes(title.id);
+                                return (
+                                    <View key={title.id} style={styles.availableRewardItemWrapper}>
+                                        <BlurView intensity={20} tint="light" style={[
+                                            styles.availableRewardItemBlur,
+                                            isUnlocked && styles.unlockedRewardItemBlur
                                         ]}>
-                                            {title.name}
-                                        </Text>
-                                        <Text style={styles.availableRewardDesc}>
-                                            {title.description}
-                                        </Text>
-                                        <View style={styles.prestigeLevel}>
-                                            {Array.from({ length: title.prestigeLevel }, (_, i) => (
-                                                <Text key={i} style={styles.prestigeStar}>⭐</Text>
-                                            ))}
-                                        </View>
+                                            <Text style={styles.availableRewardIcon}>
+                                                {isUnlocked ? title.icon : '🔒'}
+                                            </Text>
+                                            <View style={styles.availableRewardInfo}>
+                                                <Text style={[
+                                                    styles.availableRewardName,
+                                                    isUnlocked && styles.unlockedRewardName
+                                                ]}>
+                                                    {title.name}
+                                                </Text>
+                                                <Text style={styles.availableRewardDesc}>
+                                                    {title.description}
+                                                </Text>
+                                                <View style={styles.prestigeLevel}>
+                                                    {Array.from({ length: title.prestigeLevel }, (_, i) => (
+                                                        <Text key={i} style={styles.prestigeStar}>⭐</Text>
+                                                    ))}
+                                                </View>
+                                            </View>
+                                            {isUnlocked && (
+                                                <Text style={styles.unlockedBadge}>✅</Text>
+                                            )}
+                                        </BlurView>
                                     </View>
-                                    {isUnlocked && (
-                                        <Text style={styles.unlockedBadge}>✅</Text>
-                                    )}
-                                </View>
-                            );
-                        })}
-                    </BlurView>
+                                );
+                            })}
+                        </BlurView>
+                    </View>
+
                     {/* BOUTON DEBUG - UNIQUEMENT EN DÉVELOPPEMENT */}
                     {__DEV__ && (
                         <TouchableOpacity
-                            style={styles.debugButton}
-                            onPress={() => setShowDebugModal(true)}
+                            style={styles.debugButtonWrapper}
+                            onPress={() => console.log("Debug modal triggered")} // Remplacez par votre logique modale
                         >
                             <Text style={styles.debugButtonText}>🔧 Debug Géolocalisation</Text>
                         </TouchableOpacity>
                     )}
                     {/* Bouton déconnexion */}
-                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <TouchableOpacity style={styles.logoutButtonWrapper} onPress={handleLogout}>
                         <Text style={styles.logoutText}>Déconnexion</Text>
                     </TouchableOpacity>
 
@@ -482,20 +674,29 @@ const styles = StyleSheet.create({
     },
     errorText: {
         fontSize: 18,
-        color: '#ff6b6b',
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#FF7043',
         textAlign: 'center',
-        fontWeight: '600',
     },
 
-    // En-tête profil
-    profileHeader: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    // En-tête profil (Wrapper)
+    profileHeaderWrapper: {
         borderRadius: 20,
+        overflow: 'hidden',
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 1)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 30,
+        elevation: 40,
+    },
+    profileHeaderBlur: {
+        flex: 1, // S'assure que BlurView remplit le wrapper
+        backgroundColor: 'rgba(255, 255, 255, 0.1)', // Très transparent
         padding: 20,
         alignItems: 'center',
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
     },
     avatarContainer: {
         alignItems: 'center',
@@ -506,17 +707,32 @@ const styles = StyleSheet.create({
         height: 100,
         borderRadius: 50,
         borderWidth: 4,
-        borderColor: '#fb7a68',
+        borderColor: '#FF9800',
+        shadowColor: 'rgba(0, 0, 0, 0.2)',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 10,
     },
-    rankBadge: {
+    // Badge de rang (Wrapper)
+    rankBadgeWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 15,
         marginTop: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 1.5,
+        shadowColor: 'rgba(255, 255, 255, 0.5)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 5,
+        elevation: 5,
+        overflow: 'hidden', // Ajout ici
+    },
+    rankBadgeBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)', // Couleur de fond via JS
     },
     rankIcon: {
         fontSize: 16,
@@ -524,16 +740,27 @@ const styles = StyleSheet.create({
     },
     rankText: {
         fontSize: 14,
-        fontWeight: '700',
+        fontFamily: "Fustat-ExtraBold.ttf",
     },
-    titleBadge: {
+    // Titre actuel (Wrapper)
+    titleBadgeWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(251, 122, 104, 0.2)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 15,
         marginTop: 5,
+        borderWidth: 1.5,
+        shadowColor: 'rgba(255, 255, 255, 0.5)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 5,
+        elevation: 5,
+        overflow: 'hidden', // Ajout ici
+    },
+    titleBadgeBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 112, 67, 0.2)', // Couleur de fond via JS
     },
     titleIcon: {
         fontSize: 16,
@@ -541,52 +768,81 @@ const styles = StyleSheet.create({
     },
     titleText: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#fb7a68',
+        fontFamily: "Fustat-SemiBold.ttf",
     },
     username: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#2c1d53',
+        fontSize: 28,
+        fontFamily: "Fustat-ExtraBold.ttf",
+        color: '#FF7043',
         marginBottom: 5,
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     email: {
         fontSize: 16,
-        color: '#666',
+        fontFamily: "Fustat-Regular.ttf",
+        color: '#4a4a4a',
         marginBottom: 8,
     },
     totalScore: {
         fontSize: 20,
-        fontWeight: '600',
-        color: '#fb7a68',
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#FF9800',
         marginBottom: 5,
+        textShadowColor: 'rgba(0, 0, 0, 0.05)',
+        textShadowOffset: { width: 0.5, height: 0.5 },
+        textShadowRadius: 1,
     },
     averageScore: {
         fontSize: 16,
-        fontWeight: '500',
-        color: '#4a3b79',
+        fontFamily: "Fustat-Regular.ttf",
+        color: '#4a4a4a',
     },
 
-    // Quiz récents
-    recentQuizzesContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    // Quiz récents (Wrapper)
+    recentQuizzesContainerWrapper: {
         borderRadius: 20,
-        padding: 20,
+        overflow: 'hidden',
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.8)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 20,
+    },
+    recentQuizzesContainerBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 15,
+    },
+    recentQuizzesScrollContent: {
+        paddingHorizontal: 5,
     },
     recentQuizzesRow: {
         flexDirection: 'row',
-        paddingHorizontal: 5,
     },
-    recentQuizItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    // Item de quiz récent (Wrapper)
+    recentQuizItemWrapper: {
         borderRadius: 15,
-        padding: 15,
         marginRight: 15,
+        minWidth: 130,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 10,
+        overflow: 'hidden', // Ajout ici
+    },
+    recentQuizItemBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        padding: 15,
         alignItems: 'center',
-        minWidth: 120,
     },
     performanceIndicator: {
         width: 50,
@@ -598,276 +854,417 @@ const styles = StyleSheet.create({
     },
     performancePercentage: {
         color: 'white',
-        fontWeight: '700',
+        fontFamily: 'Fustat-ExtraBold.ttf',
         fontSize: 14,
     },
     recentQuizName: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#2c1d53',
+        fontSize: 13,
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#4a4a4a',
         textAlign: 'center',
         marginBottom: 5,
     },
     recentQuizScore: {
         fontSize: 11,
+        fontFamily: "Fustat-Regular.ttf",
         color: '#666',
         marginBottom: 5,
     },
     recentQuizBadge: {
-        fontSize: 16,
+        fontSize: 18,
     },
 
-    // Statistiques
-    statsContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    // Statistiques (Wrapper)
+    statsContainerWrapper: {
         borderRadius: 20,
-        padding: 20,
+        overflow: 'hidden',
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.8)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 20,
+    },
+    statsContainerBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 20,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#2c1d53',
+        fontSize: 20,
+        fontFamily: "Fustat-ExtraBold.ttf",
+        color: '#FF7043',
         marginBottom: 15,
         textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     statsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
+        justifyContent: 'space-around',
+        gap: 10,
     },
-    statItem: {
-        width: '48%',
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    // Item de statistique (Wrapper)
+    statItemWrapper: {
+        width: '47%',
         borderRadius: 15,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 10,
+        overflow: 'hidden', // Ajout ici
+    },
+    statItemBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
         padding: 15,
         alignItems: 'center',
-        marginBottom: 10,
     },
     statNumber: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: '#fb7a68',
+        fontSize: 30,
+        fontFamily: "Fustat-ExtraBold.ttf",
+        color: '#FF9800',
         marginBottom: 5,
     },
     statLabel: {
-        fontSize: 12,
-        color: '#666',
+        fontSize: 13,
+        fontFamily: "Fustat-Regular.ttf",
+        color: '#4a4a4a',
         textAlign: 'center',
-        fontWeight: '500',
     },
 
-    // Prochaine récompense
-    nextRewardContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    // Prochaine récompense (Wrapper)
+    nextRewardContainerWrapper: {
         borderRadius: 20,
-        padding: 20,
+        overflow: 'hidden',
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.8)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 20,
+    },
+    nextRewardContainerBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 20,
     },
     nextRewardItem: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     nextRewardIcon: {
-        fontSize: 30,
+        fontSize: 35,
         marginRight: 15,
     },
     nextRewardInfo: {
         flex: 1,
     },
     nextRewardName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#2c1d53',
+        fontSize: 18,
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#FF7043',
         marginBottom: 10,
     },
     progressBar: {
-        height: 8,
+        height: 10,
         backgroundColor: 'rgba(0, 0, 0, 0.1)',
-        borderRadius: 4,
+        borderRadius: 5,
         marginBottom: 5,
+        overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        backgroundColor: '#fb7a68',
-        borderRadius: 4,
+        borderRadius: 5,
     },
     progressText: {
-        fontSize: 12,
-        color: '#666',
+        fontSize: 13,
+        fontFamily: "Fustat-Regular.ttf",
+        color: '#4a4a4a',
         textAlign: 'right',
     },
 
-    // Récompenses
-    rewardsContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    // Conteneurs de récompenses (Médailles, Coupes, Titres) (Wrapper)
+    rewardsContainerWrapper: {
         borderRadius: 20,
-        padding: 20,
+        overflow: 'hidden',
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.8)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 20,
+    },
+    rewardsContainerBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 20,
+    },
+    rewardsScrollContent: {
+        paddingHorizontal: 5,
     },
     rewardsRow: {
         flexDirection: 'row',
-        paddingHorizontal: 5,
     },
-    rewardItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    // Item de récompense (Wrapper)
+    rewardItemWrapper: {
         borderRadius: 15,
-        padding: 15,
         marginRight: 15,
+        minWidth: 150,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 10,
+        overflow: 'hidden', // Ajout ici
+    },
+    rewardItemBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        padding: 15,
         alignItems: 'center',
-        minWidth: 140,
     },
     rewardIcon: {
-        fontSize: 40,
+        fontSize: 45,
         marginBottom: 10,
     },
     rewardInfo: {
         alignItems: 'center',
     },
     rewardName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#2c1d53',
+        fontSize: 16,
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#4a4a4a',
         textAlign: 'center',
         marginBottom: 5,
     },
     rewardDesc: {
         fontSize: 12,
+        fontFamily: "Fustat-Regular.ttf",
         color: '#666',
         textAlign: 'center',
         marginBottom: 5,
         lineHeight: 16,
     },
     rewardPoints: {
-        fontSize: 12,
-        color: '#fb7a68',
-        fontWeight: '600',
+        fontSize: 13,
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#FF9800',
     },
     noRewardsText: {
         fontSize: 14,
-        color: '#666',
+        fontFamily: "Fustat-Regular.ttf",
+        color: '#4a4a4a',
         textAlign: 'center',
         fontStyle: 'italic',
         lineHeight: 20,
     },
 
-    // Titres
+    // Titres (grille)
     titlesGrid: {
-        gap: 10,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-around',
+        gap: 15,
     },
-    titleItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    // Item de titre (Wrapper)
+    titleItemWrapper: {
         borderRadius: 15,
+        width: '47%',
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 10,
+        overflow: 'hidden', // Ajout ici
+    },
+    titleItemBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
         padding: 15,
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: 'transparent',
     },
-    currentTitleItem: {
-        borderColor: '#fb7a68',
-        backgroundColor: 'rgba(251, 122, 104, 0.1)',
+    currentTitleItemBlur: { // Appliqué au BlurView interne
+        borderColor: '#FF7043',
+        shadowColor: '#FF7043',
+        shadowRadius: 15,
+        elevation: 15,
     },
     titleItemIcon: {
-        fontSize: 40,
-        marginBottom: 10,
+        fontSize: 35,
+        marginBottom: 5,
     },
     titleItemName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#2c1d53',
+        fontSize: 15,
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#4a4a4a',
+        textAlign: 'center',
         marginBottom: 5,
     },
     prestigeLevel: {
         flexDirection: 'row',
-        marginBottom: 5,
+        marginTop: 5,
     },
     prestigeStar: {
-        fontSize: 12,
+        fontSize: 14,
+        marginHorizontal: 1,
     },
     currentTitleLabel: {
         fontSize: 10,
-        color: '#fb7a68',
-        fontWeight: '700',
-        backgroundColor: 'rgba(251, 122, 104, 0.2)',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        fontFamily: "Fustat-ExtraBold.ttf",
+        color: '#FF7043',
+        marginTop: 5,
     },
 
-    // Toutes les récompenses
-    allRewardsContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    // Toutes les récompenses disponibles (Wrapper)
+    allRewardsContainerWrapper: {
         borderRadius: 20,
-        padding: 20,
+        overflow: 'hidden',
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.8)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 20,
+    },
+    allRewardsContainerBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 20,
     },
     subSectionTitle: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#4a3b79',
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#FF9800',
         marginTop: 15,
         marginBottom: 10,
+        textAlign: 'left',
     },
-    availableRewardItem: {
+    // Item de récompense disponible (Wrapper)
+    availableRewardItemWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        borderRadius: 12,
+        borderRadius: 15,
         padding: 12,
-        marginBottom: 8,
-    },
-    unlockedRewardItem: {
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-        borderColor: '#4CAF50',
+        marginBottom: 10,
         borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: 'rgba(0, 0, 0, 0.05)',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 5,
+        overflow: 'hidden', // Ajout ici
+    },
+    availableRewardItemBlur: {
+        flex: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        flexDirection: 'row', // Pour que le contenu soit flex
+        alignItems: 'center',
+        paddingRight: 10, // Pour éviter que l'icône de badge ne soit coupée
+    },
+    unlockedRewardItemBlur: {
+        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        borderColor: 'rgba(255, 240, 200, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.5)',
+        shadowRadius: 10,
+        elevation: 8,
     },
     availableRewardIcon: {
-        fontSize: 24,
-        marginRight: 12,
-        width: 30,
-        textAlign: 'center',
+        fontSize: 28,
+        marginRight: 10,
     },
     availableRewardInfo: {
         flex: 1,
     },
     availableRewardName: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#666',
-        marginBottom: 2,
+        fontFamily: "Fustat-SemiBold.ttf",
+        color: '#4a4a4a',
     },
     unlockedRewardName: {
-        color: '#2c1d53',
+        color: '#FF7043',
     },
     availableRewardDesc: {
         fontSize: 12,
-        color: '#888',
-        lineHeight: 16,
+        fontFamily: "Fustat-Regular.ttf",
+        color: '#666',
     },
     unlockedBadge: {
         fontSize: 20,
         marginLeft: 10,
     },
 
-    // Bouton déconnexion
-    logoutButton: {
-        backgroundColor: '#ff6b6b',
-        borderRadius: 15,
-        padding: 15,
+    // Bouton de déconnexion (Wrapper)
+    logoutButtonWrapper: {
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 20,
+        width: '90%',
+        height: 60,
+        borderRadius: 30,
+        marginTop: 30,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1.8,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.9)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 25,
+        overflow: 'hidden', // Ajout ici
     },
     logoutText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 20,
+        fontFamily: "Fustat-ExtraBold.ttf",
+        color: '#FF7043',
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+
+    // Bouton Debug (Wrapper)
+    debugButtonWrapper: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '90%',
+        height: 60,
+        borderRadius: 30,
+        marginTop: 20,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1.8,
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(255, 240, 200, 0.9)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        elevation: 25,
+        overflow: 'hidden', // Ajout ici
+    },
+    debugButtonText: {
+        fontSize: 20,
+        fontFamily: "Fustat-ExtraBold.ttf",
+        color: '#64B5F6',
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
 });
