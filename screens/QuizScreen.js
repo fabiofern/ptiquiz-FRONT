@@ -14,6 +14,8 @@ import RewardsNotification from '../components/RewardsNotification';
 SplashScreen.preventAutoHideAsync();
 
 export default function QuizScreen({ navigation }) {
+
+    const URL = process.env.EXPO_PUBLIC_BACKEND_URL
     // Redux
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
@@ -49,7 +51,7 @@ export default function QuizScreen({ navigation }) {
             setLoading(true);
             console.log('📚 Récupération quiz débloqués depuis l\'API...');
 
-            const response = await fetch(`http://192.168.2.16:3000/quizz/unlocked/${userData.userID}`, {
+            const response = await fetch(`${URL}/quizz/unlocked/${userData.userID}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -123,7 +125,7 @@ export default function QuizScreen({ navigation }) {
         try {
             console.log('💾 Sauvegarde quiz via API...');
 
-            const response = await fetch('http://192.168.2.16:3000/quizz/complete', {
+            const response = await fetch(`${URL}}/quizz/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
