@@ -204,6 +204,29 @@ export default function ProfileScreen({ navigation }) {
         }, 0);
     };
 
+    // NOUVELLE FONCTION - Calculer les statistiques de duels
+    const calculateDuelStats = () => {
+        const duelHistory = userData?.duelHistory || [];
+        const duelsWon = duelHistory.filter(duel => duel.result === 'won').length;
+        const duelsLost = duelHistory.filter(duel => duel.result === 'lost').length;
+        const duelsDraw = duelHistory.filter(duel => duel.result === 'draw').length;
+
+        const winRate = duelHistory.length > 0
+            ? Math.round((duelsWon / duelHistory.length) * 100)
+            : 0;
+
+        return {
+            totalDuels: duelHistory.length,
+            duelsWon,
+            duelsLost,
+            duelsDraw,
+            winRate,
+            bestStreak: userData.bestDuelStreak || 0,
+            currentStreak: userData.currentDuelStreak || 0,
+            totalDuelPoints: duelHistory.reduce((total, duel) => total + (duel.points || 0), 0)
+        };
+    };
+
     const stats = {
         totalQuizzes: Object.keys(userData.completedQuizzes || {}).length,
         perfectQuizzes: Object.values(userData.completedQuizzes || {})
@@ -219,7 +242,9 @@ export default function ProfileScreen({ navigation }) {
         unlockedQuizzes: (userData.unlockedQuizzes || []).length,
         medals: (userData.rewards?.medals || []).length,
         trophies: (userData.rewards?.trophies || []).length,
-        titles: (userData.rewards?.titles || []).length
+        titles: (userData.rewards?.titles || []).length,
+        // AJOUTER LES STATS DE DUELS
+        ...calculateDuelStats()
     };
 
     const getUserRank = () => {
@@ -240,7 +265,27 @@ export default function ProfileScreen({ navigation }) {
         }
     };
 
+    // NOUVELLE FONCTION - Obtenir le rang de duelliste
+    const getDuelRank = () => {
+        const { duelsWon, winRate, totalDuels } = stats;
+
+        if (duelsWon >= 50 && winRate >= 90) {
+            return { rank: 'Champion Légendaire', icon: '👑', color: '#FFD700' };
+        } else if (duelsWon >= 25 && winRate >= 80) {
+            return { rank: 'Maître Duelliste', icon: '⚔️', color: '#C0C0C0' };
+        } else if (duelsWon >= 10 && winRate >= 70) {
+            return { rank: 'Guerrier Expérimenté', icon: '🛡️', color: '#CD7F32' };
+        } else if (duelsWon >= 5 && winRate >= 60) {
+            return { rank: 'Combattant', icon: '⚡', color: '#FF9800' };
+        } else if (totalDuels >= 3) {
+            return { rank: 'Apprenti Guerrier', icon: '🗡️', color: '#4CAF50' };
+        } else {
+            return { rank: 'Recrue', icon: '🛡️', color: '#9E9E9E' };
+        }
+    };
+
     const userRank = getUserRank();
+    const duelRank = getDuelRank(); // NOUVEAU
     const currentTitle = RewardsService.getCurrentTitle(userData);
     const nextReward = RewardsService.getNextRewardProgress(userData);
 
@@ -302,7 +347,7 @@ export default function ProfileScreen({ navigation }) {
                             </View>
                             <Text style={styles.username}>{userData.username}</Text>
                             <Text style={styles.email}>{userData.email}</Text>
-                            <Text style={styles.totalScore}>🏆 {stats.totalScore} points obtenus</Text>
+                            <Text style={styles.totalScore}>🏆 {stats.totalScore + stats.totalDuelPoints} points obtenus</Text>
                             <Text style={styles.averageScore}>📊 Moyenne: {stats.averageScore}%</Text>
                         </BlurView>
                     </View>
@@ -359,6 +404,77 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
+                    {/* NOUVELLE SECTION - STATISTIQUES DES DUELS */}
+                    <View style={styles.statsContainerWrapper}>
+                        <BlurView intensity={50} tint="light" style={styles.statsContainerBlur}>
+                            <Text style={styles.sectionTitle}>⚔️ STATISTIQUES DES DUELS</Text>
+
+                            {/* Rang de duelliste */}
+                            <View style={styles.duelRankWrapper}>
+                                <BlurView intensity={30} tint="light" style={styles.duelRankBlur}>
+                                    <Text style={styles.duelRankIcon}>{duelRank.icon}</Text>
+                                    <Text style={[styles.duelRankText, { color: duelRank.color }]}>
+                                        {duelRank.rank}
+                                    </Text>
+                                </BlurView>
+                            </View>
+
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={styles.statNumber}>{stats.totalDuels}</Text>
+                                        <Text style={styles.statLabel}>Duels joués</Text>
+                                    </BlurView>
+                                </View>
+
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#4CAF50' }]}>
+                                            {stats.duelsWon}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Victoires</Text>
+                                    </BlurView>
+                                </View>
+
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#F44336' }]}>
+                                            {stats.duelsLost}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Défaites</Text>
+                                    </BlurView>
+                                </View>
+
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#FF9800' }]}>
+                                            {stats.winRate}%
+                                        </Text>
+                                        <Text style={styles.statLabel}>Taux de victoire</Text>
+                                    </BlurView>
+                                </View>
+
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#9C27B0' }]}>
+                                            {stats.currentStreak}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Série actuelle</Text>
+                                    </BlurView>
+                                </View>
+
+                                <View style={styles.statItemWrapper}>
+                                    <BlurView intensity={30} tint="light" style={styles.statItemBlur}>
+                                        <Text style={[styles.statNumber, { color: '#FF5722' }]}>
+                                            {stats.bestStreak}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Meilleure série</Text>
+                                    </BlurView>
+                                </View>
+                            </View>
+                        </BlurView>
+                    </View>
+
                     {Object.keys(userData.completedQuizzes || {}).length > 0 && (
                         <View style={styles.recentQuizzesContainerWrapper}>
                             <BlurView intensity={50} tint="light" style={styles.recentQuizzesContainerBlur}>
@@ -389,6 +505,55 @@ export default function ProfileScreen({ navigation }) {
                                                             {quiz.percentage === 100 ? '🏆' :
                                                                 quiz.percentage >= 80 ? '⭐' :
                                                                     quiz.percentage >= 70 ? '👍' : '💪'}
+                                                        </Text>
+                                                    </BlurView>
+                                                </View>
+                                            ))
+                                        }
+                                    </View>
+                                </ScrollView>
+                            </BlurView>
+                        </View>
+                    )}
+
+                    {/* NOUVELLE SECTION - DUELS RÉCENTS */}
+                    {stats.totalDuels > 0 && (
+                        <View style={styles.recentDuelsContainerWrapper}>
+                            <BlurView intensity={50} tint="light" style={styles.recentDuelsContainerBlur}>
+                                <Text style={styles.sectionTitle}>⚔️ DUELS RÉCENTS</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentDuelsScrollContent}>
+                                    <View style={styles.recentDuelsRow}>
+                                        {(userData.duelHistory || [])
+                                            .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                            .slice(0, 5)
+                                            .map((duel, index) => (
+                                                <View key={index} style={styles.recentDuelItemWrapper}>
+                                                    <BlurView intensity={30} tint="light" style={styles.recentDuelItemBlur}>
+                                                        <View style={[
+                                                            styles.duelResultIndicator,
+                                                            {
+                                                                backgroundColor:
+                                                                    duel.result === 'won' ? '#4CAF50' :
+                                                                        duel.result === 'lost' ? '#F44336' : '#FF9800'
+                                                            }
+                                                        ]}>
+                                                            <Text style={styles.duelResultText}>
+                                                                {duel.result === 'won' ? 'W' :
+                                                                    duel.result === 'lost' ? 'L' : 'D'}
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={styles.recentDuelOpponent} numberOfLines={1}>
+                                                            vs {duel.opponentName}
+                                                        </Text>
+                                                        <Text style={styles.recentDuelScore}>
+                                                            {duel.playerScore} - {duel.opponentScore}
+                                                        </Text>
+                                                        <Text style={styles.recentDuelPoints}>
+                                                            {duel.result === 'won' ? '+' : ''}{duel.points || 0} pts
+                                                        </Text>
+                                                        <Text style={styles.recentDuelBadge}>
+                                                            {duel.result === 'won' ? '🏆' :
+                                                                duel.result === 'lost' ? '💪' : '🤝'}
                                                         </Text>
                                                     </BlurView>
                                                 </View>
@@ -595,11 +760,25 @@ export default function ProfileScreen({ navigation }) {
                         </BlurView>
                     </View>
 
-                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                        <BlurView intensity={60} tint="light" style={styles.logoutButtonBlur}>
-                            <Text style={styles.logoutButtonText}>Déconnexion</Text>
-                        </BlurView>
-                    </TouchableOpacity>
+                    <View style={styles.actionsWrapper}>
+                        <TouchableOpacity
+                            style={styles.settingsButton}
+                            onPress={() => setIsEditModalVisible(true)}
+                        >
+                            <BlurView intensity={30} tint="light" style={styles.settingsButtonBlur}>
+                                <Text style={styles.settingsButtonText}>Paramètres</Text>
+                            </BlurView>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.logoutButton}
+                            onPress={handleLogout}
+                        >
+                            <BlurView intensity={30} tint="light" style={styles.logoutButtonBlur}>
+                                <Text style={styles.logoutButtonText}>Déconnexion</Text>
+                            </BlurView>
+                        </TouchableOpacity>
+                    </View>
 
                 </ScrollView>
             </SafeAreaView>
@@ -612,72 +791,78 @@ export default function ProfileScreen({ navigation }) {
             >
                 <View style={styles.centeredView}>
                     <BlurView intensity={50} tint="light" style={styles.modalView}>
-                        <Text style={styles.modalTitle}>Modifier le Profil</Text>
+                        <ScrollView
+                            contentContainerStyle={styles.modalContentContainer}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <Text style={styles.modalTitle}>Modifier le Profil</Text>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Nom d'utilisateur :</Text>
-                            <TextInput
-                                style={styles.input}
-                                onChangeText={setNewUsername}
-                                value={newUsername}
-                                placeholder="Entrez votre nouveau nom d'utilisateur"
-                                placeholderTextColor="rgba(74, 74, 74, 0.6)"
-                                maxLength={20}
-                            />
-                        </View>
-
-                        <View style={styles.avatarSectionContainer}>
-                            <Text style={styles.inputLabel}>Choisir un avatar :</Text>
-
-                            <View style={styles.currentAvatarContainer}>
-                                <Image
-                                    source={avatarImages[selectedAvatar]}
-                                    style={styles.currentSelectedAvatar}
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Nom d'utilisateur :</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    onChangeText={setNewUsername}
+                                    value={newUsername}
+                                    placeholder="Entrez votre nouveau nom d'utilisateur"
+                                    placeholderTextColor="rgba(74, 74, 74, 0.6)"
+                                    maxLength={20}
                                 />
-                                <Text style={styles.currentAvatarText}>Avatar sélectionné</Text>
                             </View>
 
-                            <FlatList
-                                data={Object.keys(avatarImages)}
-                                keyExtractor={(item) => item}
-                                numColumns={4}
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={styles.avatarFlatListContent}
-                                renderItem={({ item: avatarFileName }) => (
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.avatarOptionFlat,
-                                            selectedAvatar === avatarFileName && styles.selectedAvatarOptionFlat
-                                        ]}
-                                        onPress={() => setSelectedAvatar(avatarFileName)}
-                                    >
-                                        <Image
-                                            source={avatarImages[avatarFileName]}
-                                            style={styles.avatarOptionImageFlat}
-                                        />
-                                        {selectedAvatar === avatarFileName && (
-                                            <View style={styles.selectedIndicator}>
-                                                <Text style={styles.checkIcon}>✓</Text>
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-                                )}
-                            />
-                        </View>
+                            <View style={styles.avatarSectionContainer}>
+                                <Text style={styles.inputLabel}>Choisir un avatar :</Text>
 
-                        <View style={styles.buttonContainer}>
-                            <TouchableOpacity
-                                style={[styles.button, styles.saveButton]}
-                                onPress={handleSaveProfile}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#FF9800" />
-                                ) : (
-                                    <Text style={styles.buttonText}>Sauvegarder</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
+                                <View style={styles.currentAvatarContainer}>
+                                    <Image
+                                        source={avatarImages[selectedAvatar]}
+                                        style={styles.currentSelectedAvatar}
+                                    />
+                                    <Text style={styles.currentAvatarText}>Avatar sélectionné</Text>
+                                </View>
+
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={styles.avatarHorizontalScroll}
+                                >
+                                    {Object.keys(avatarImages).map((avatarFileName) => (
+                                        <TouchableOpacity
+                                            key={avatarFileName}
+                                            style={[
+                                                styles.avatarOptionFlat,
+                                                selectedAvatar === avatarFileName && styles.selectedAvatarOptionFlat
+                                            ]}
+                                            onPress={() => setSelectedAvatar(avatarFileName)}
+                                        >
+                                            <Image
+                                                source={avatarImages[avatarFileName]}
+                                                style={styles.avatarOptionImageFlat}
+                                            />
+                                            {selectedAvatar === avatarFileName && (
+                                                <View style={styles.selectedIndicator}>
+                                                    <Text style={styles.checkIcon}>✓</Text>
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+
+                            </View>
+
+                            <View style={styles.buttonContainer}>
+                                <TouchableOpacity
+                                    style={styles.button}
+                                    onPress={handleSaveProfile}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <ActivityIndicator color="#FF9800" />
+                                    ) : (
+                                        <Text style={styles.buttonText}>Sauvegarder</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
                     </BlurView>
                 </View>
             </Modal>
@@ -880,6 +1065,121 @@ const styles = StyleSheet.create({
         color: '#4a4a4a',
         textAlign: 'center',
     },
+
+    // NOUVEAUX STYLES POUR LES DUELS
+    duelRankWrapper: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    duelRankBlur: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 25,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+    },
+    duelRankIcon: {
+        fontSize: 24,
+        marginRight: 10,
+    },
+    duelRankText: {
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 18,
+    },
+
+    // Styles pour l'historique des duels récents
+    recentDuelsContainerWrapper: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 25,
+        overflow: 'hidden',
+        marginBottom: 30,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    recentDuelsContainerBlur: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        padding: 20,
+        borderRadius: 25,
+    },
+    recentDuelsScrollContent: {
+        paddingRight: 10,
+    },
+    recentDuelsRow: {
+        flexDirection: 'row',
+    },
+    recentDuelItemWrapper: {
+        width: 140,
+        height: 160,
+        borderRadius: 15,
+        overflow: 'hidden',
+        marginRight: 15,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    recentDuelItemBlur: {
+        flex: 1,
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 15,
+    },
+    duelResultIndicator: {
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 20,
+        marginBottom: 8,
+        minWidth: 30,
+        alignItems: 'center',
+    },
+    duelResultText: {
+        fontFamily: 'Fustat-Bold.ttf',
+        color: '#FFFFFF',
+        fontSize: 16,
+    },
+    recentDuelOpponent: {
+        fontFamily: 'Fustat-SemiBold.ttf',
+        fontSize: 14,
+        color: '#4a4a4a',
+        textAlign: 'center',
+        marginBottom: 5,
+    },
+    recentDuelScore: {
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 16,
+        color: '#FF9800',
+        marginBottom: 5,
+    },
+    recentDuelPoints: {
+        fontFamily: 'Fustat-Regular.ttf',
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 5,
+    },
+    recentDuelBadge: {
+        fontSize: 20,
+    },
+
     recentQuizzesContainerWrapper: {
         width: '100%',
         maxWidth: 400,
@@ -1242,7 +1542,7 @@ const styles = StyleSheet.create({
         maxWidth: 250,
         borderRadius: 30,
         overflow: 'hidden',
-        marginTop: 30,
+        marginTop: 20,
         borderWidth: 2,
         borderColor: 'rgba(255, 255, 255, 0.4)',
         shadowColor: '#000',
@@ -1298,10 +1598,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
     },
     modalView: {
-        justifyContent: 'center',
-        alignItems: 'center',
         width: '90%',
-        padding: 45,
+        maxHeight: '85%',
         borderRadius: 30,
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderWidth: 3,
@@ -1312,13 +1610,18 @@ const styles = StyleSheet.create({
         shadowRadius: 40,
         elevation: 60,
         overflow: 'hidden',
-        maxHeight: '85%',
+    },
+    modalContentContainer: {
+        padding: 30,
+        paddingBottom: 60,
+        alignItems: 'center',
     },
     modalTitle: {
         fontFamily: 'Fustat-SemiBold.ttf',
         fontSize: 38,
         color: '#FF7043',
-        marginBottom: 50,
+        marginTop: 10,
+        marginBottom: 20,
         textAlign: 'center',
         textShadowColor: 'rgba(0, 0, 0, 0.15)',
         textShadowOffset: { width: 2, height: 2 },
@@ -1326,6 +1629,7 @@ const styles = StyleSheet.create({
     },
     avatarSectionContainer: {
         width: '100%',
+        minHeight: 400,
         maxHeight: 450,
         marginBottom: 20,
     },
@@ -1357,20 +1661,18 @@ const styles = StyleSheet.create({
         color: '#4a4a4a',
     },
     avatarFlatListContent: {
-        paddingVertical: 10,
-        // paddingHorizontal: 10,
-        minHeight: 300,
+        minHeight: 20,
     },
     avatarRowStyle: {
         justifyContent: 'space-around',
         width: '100%',
     },
     avatarOptionFlat: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 155,
+        height: 155,
+        borderRadius: 100,
         margin: 8,
-        borderWidth: 2,
+        borderWidth: 5,
         borderColor: 'rgba(255, 255, 255, 0.5)',
         backgroundColor: 'rgba(255, 255, 255, 0.3)',
         justifyContent: 'center',
@@ -1391,9 +1693,15 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
     avatarOptionImageFlat: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 150,
+        height: 150,
+        borderRadius: 100,
+    },
+    avatarHorizontalScroll: {
+        paddingVertical: 10,
+        paddingHorizontal: 5,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     selectedIndicator: {
         position: 'absolute',
@@ -1445,15 +1753,13 @@ const styles = StyleSheet.create({
     buttonContainer: {
         width: '100%',
         alignItems: 'center',
-        marginTop: 15,
     },
     button: {
         justifyContent: 'center',
         alignItems: 'center',
-        width: '80%',
+        width: '100%',
         height: 68,
         borderRadius: 35,
-        marginVertical: 12,
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1.8,
         borderColor: 'rgba(255, 255, 255, 0.7)',
@@ -1463,10 +1769,6 @@ const styles = StyleSheet.create({
         shadowRadius: 15,
         elevation: 25,
     },
-    saveButton: {
-    },
-    cancelButton: {
-    },
     buttonText: {
         fontSize: 26,
         fontFamily: 'Fustat-ExtraBold.ttf',
@@ -1474,5 +1776,36 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+    },
+    actionsWrapper: {
+        width: '100%',
+        alignItems: 'center',
+        paddingBottom: 60,
+    },
+    settingsButton: {
+        width: '100%',
+        maxWidth: 250,
+        borderRadius: 30,
+        overflow: 'hidden',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    settingsButtonBlur: {
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    settingsButtonText: {
+        fontFamily: 'Fustat-Bold.ttf',
+        fontSize: 18,
+        color: '#4a4a4a',
     },
 });

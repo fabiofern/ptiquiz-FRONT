@@ -43,9 +43,10 @@
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0"
   },
-  "devDependencies": {
+"devDependencies": {
     "@babel/core": "^7.20.0",
-    "@babel/plugin-transform-template-literals": "^7.27.1"
+    "@babel/plugin-transform-template-literals": "^7.27.1",
+    "@react-native-community/cli": "latest"
   },
   "private": true
 }
