@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'; // Ajout de useRef
+import React, { useState, useEffect, useRef } from 'react';
 import {
     StyleSheet, View, SafeAreaView, TextInput, Text, Modal, TouchableOpacity,
-    Image, ScrollView, Alert, ActivityIndicator, Dimensions, Animated // Ajout de Dimensions et Animated
+    Image, ScrollView, Alert, ActivityIndicator, Dimensions, Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from "expo-splash-screen";
@@ -10,13 +10,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateUser } from '../redux/userSlice';
 import { RewardsService } from '../services/RewardsService';
 import { useFonts } from "expo-font";
-// import RewardsNotification from '../components/RewardsNotification'; // Non fourni, laissé tel quel
 
 SplashScreen.preventAutoHideAsync();
 
-const { width, height } = Dimensions.get('window'); // Dimensions de l'écran pour AuroraBackground
+const { width, height } = Dimensions.get('window');
 
-// --- COMPOSANT : FOND DYNAMIQUE "AURORA" ---
 const AuroraBackground = () => {
     const [isReady, setIsReady] = useState(false);
     const blobs = useRef([]);
@@ -99,15 +97,12 @@ const AuroraBackground = () => {
         </View>
     );
 };
-// --- FIN DU COMPOSANT FOND DYNAMIQUE "AURORA" ---
-
 
 export default function QuizScreen({ navigation }) {
     const URL = process.env.EXPO_PUBLIC_BACKEND_URL
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
 
-    // Font loading
     const [loaded] = useFonts({
         "Fustat-Bold.ttf": require("../assets/fonts/Fustat-Bold.ttf"),
         "Fustat-ExtraBold.ttf": require("../assets/fonts/Fustat-ExtraBold.ttf"),
@@ -115,14 +110,12 @@ export default function QuizScreen({ navigation }) {
         "Fustat-SemiBold.ttf": require("../assets/fonts/Fustat-SemiBold.ttf"),
     });
 
-    // Hide splash screen once fonts are loaded
     useEffect(() => {
         if (loaded) {
             SplashScreen.hideAsync();
         }
     }, [loaded]);
 
-    // Local states
     const [unlockedQuizzes, setUnlockedQuizzes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedQuiz, setSelectedQuiz] = useState(null);
@@ -134,14 +127,12 @@ export default function QuizScreen({ navigation }) {
     const [newRewards, setNewRewards] = useState([]);
     const [showRewardsNotification, setShowRewardsNotification] = useState(false);
 
-    // Route protection
     useEffect(() => {
         if (!isLoggedIn) {
             navigation.navigate('Login');
         }
     }, [isLoggedIn, navigation]);
 
-    // Fetch unlocked quizzes from API
     const fetchUnlockedQuizzes = async () => {
         if (!userData?.userID) {
             console.log('❌ No userID available');
@@ -183,14 +174,12 @@ export default function QuizScreen({ navigation }) {
         }
     };
 
-    // Load quizzes on component mount
     useEffect(() => {
         if (userData?.userID) {
             fetchUnlockedQuizzes();
         }
     }, [userData?.userID]);
 
-    // Reload when returning to screen (focus)
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             if (userData?.userID) {
@@ -200,18 +189,15 @@ export default function QuizScreen({ navigation }) {
         return unsubscribe;
     }, [navigation, userData?.userID]);
 
-    // handleNextQuestion function
     const handleNextQuestion = () => {
         if (currentQuestionIndex + 1 < selectedQuiz.quiz.length) {
             setCurrentQuestionIndex(prev => prev + 1);
             setSelectedAnswerIndex(null);
         } else {
-            // Quiz finished
             completeQuiz();
         }
     };
 
-    // handleAnswer function
     const handleAnswer = (answerIndex) => {
         if (selectedAnswerIndex !== null) return;
 
@@ -230,7 +216,6 @@ export default function QuizScreen({ navigation }) {
         }
     };
 
-    // Save quiz via API
     const saveQuizToAPI = async (quizId, score, totalPoints, percentage) => {
         try {
             console.log('💾 Saving quiz via API...');
@@ -264,7 +249,6 @@ export default function QuizScreen({ navigation }) {
         }
     };
 
-    // Calculate total user score (points obtained)
     const calculateUserTotalScore = () => {
         const completedQuizzes = userData?.completedQuizzes || {};
         return Object.values(completedQuizzes).reduce((total, quiz) => {
@@ -272,54 +256,45 @@ export default function QuizScreen({ navigation }) {
         }, 0);
     };
 
-    // Function to determine card color
     const getCardStyle = (percentage) => {
         if (percentage === 100) {
-            // Green for perfect
             return { borderColor: '#4CAF50', backgroundColor: 'rgba(76, 175, 80, 0.2)' };
         } else if (percentage >= 70) {
-            // Orange for good
             return { borderColor: '#FF9800', backgroundColor: 'rgba(255, 152, 0, 0.2)' };
         } else {
-            // Red for needs improvement
             return { borderColor: '#F44336', backgroundColor: 'rgba(244, 67, 54, 0.2)' };
         }
     };
 
-    // Function to determine performance emoji
     const getPerformanceEmoji = (percentage) => {
-        if (percentage === 100) return '🏆'; // Perfect
-        if (percentage >= 70) return '⭐'; // Good
-        return '💪'; // Needs improvement
+        if (percentage === 100) return '🏆';
+        if (percentage >= 70) return '⭐';
+        return '💪';
     };
 
-    // Finalize quiz
     const completeQuiz = async () => {
         const totalPoints = selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0);
         const percentage = Math.round((quizScore / totalPoints) * 100);
         const quizId = selectedQuiz._id?.$oid || selectedQuiz._id;
 
-        // Save via API
         await saveQuizToAPI(quizId, quizScore, totalPoints, percentage);
 
-        // Update Redux: Add only obtained points (don't replace)
         const completedQuizzes = userData?.completedQuizzes || {};
         const previousQuizData = completedQuizzes[quizId];
         const previousScore = previousQuizData?.score || 0;
 
-        // Calculate new total score (add only the difference)
         const currentTotalScore = calculateUserTotalScore();
         const scoreDifference = quizScore - previousScore;
         const newTotalScore = currentTotalScore + scoreDifference;
 
         const updatedUserData = {
             ...userData,
-            score: Math.max(newTotalScore, currentTotalScore), // Never decrease score
+            score: Math.max(newTotalScore, currentTotalScore),
             completedQuizzes: {
-                ...completedQuizzes, // Ensure existing completed quizzes are spread
+                ...completedQuizzes,
                 [quizId]: {
                     name: selectedQuiz.name,
-                    score: quizScore, // Points obtained in this quiz
+                    score: quizScore,
                     totalPoints,
                     percentage,
                     badge: selectedQuiz.badgeDebloque,
@@ -329,17 +304,14 @@ export default function QuizScreen({ navigation }) {
             }
         };
 
-
         dispatch(updateUser({
             userData: updatedUserData
         }));
 
-        // Check rewards only if >= 80%
         if (percentage >= 80) {
             console.log(`🎉 Sufficient score (${percentage}%) to unlock rewards!`);
             const newRewards = RewardsService.checkAllRewards(updatedUserData);
             if (newRewards.length > 0) {
-                // Filter special titles (only at 100%)
                 const filteredRewards = newRewards.filter(reward => {
                     if (reward.type === 'title' && percentage < 100) {
                         console.log(`🚫 Title "${reward.title}" not unlocked (needs 100%, obtained ${percentage}%)`);
@@ -361,7 +333,6 @@ export default function QuizScreen({ navigation }) {
         setShowResults(true);
     };
 
-    // Close quiz
     const closeQuiz = () => {
         setShowModal(false);
         setShowResults(false);
@@ -372,11 +343,9 @@ export default function QuizScreen({ navigation }) {
         setNewRewards([]);
         setShowRewardsNotification(false);
 
-        // Reload quizzes to update "completed" status
         fetchUnlockedQuizzes();
     };
 
-    // Start a quiz
     const startQuiz = (quiz) => {
         const quizId = quiz._id?.$oid || quiz._id;
         const isCompleted = userData?.completedQuizzes?.[quizId];
@@ -404,16 +373,14 @@ export default function QuizScreen({ navigation }) {
         setShowModal(true);
     };
 
-    // If fonts are not loaded yet, don't render
     if (!loaded) {
         return null;
     }
 
-    // Loading display
     if (loading) {
         return (
             <LinearGradient
-                colors={['#FFF3E0', '#FFE0B2', '#FFCC80']} // Sunrise Palette
+                colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.generalContainer}
@@ -421,7 +388,7 @@ export default function QuizScreen({ navigation }) {
                 <SafeAreaView />
                 <BlurView intensity={50} tint="light" style={styles.glass}>
                     <View style={styles.emptyState}>
-                        <ActivityIndicator size="large" color="#FF7043" /> {/* Sunrise Palette Color */}
+                        <ActivityIndicator size="large" color="#FF7043" />
                         <Text style={styles.message}>Loading quizzes...</Text>
                     </View>
                 </BlurView>
@@ -431,12 +398,11 @@ export default function QuizScreen({ navigation }) {
 
     return (
         <LinearGradient
-            colors={['#FFF3E0', '#FFE0B2', '#FFCC80']} // Sunrise Palette
+            colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.generalContainer}
         >
-            {/* Le fond dynamique Aurora est ici, derrière le reste du contenu */}
             <AuroraBackground />
 
             <SafeAreaView />
@@ -447,7 +413,7 @@ export default function QuizScreen({ navigation }) {
                         <Text style={styles.message}>🧭 Wander around your city and unlock Tiquizzes!</Text>
                         <TouchableOpacity
                             style={styles.mapButton}
-                            onPress={() => navigation.navigate('MainApp')} // Navigate to MainApp
+                            onPress={() => navigation.navigate('MainApp')}
                         >
                             <Text style={styles.mapButtonText}>See Map</Text>
                         </TouchableOpacity>
@@ -468,7 +434,6 @@ export default function QuizScreen({ navigation }) {
                             const isCompleted = !!completedData;
                             const totalPoints = quiz.quiz ? quiz.quiz.reduce((acc, q) => acc + q.points, 0) : 0;
 
-                            // Card style based on performance
                             const cardPerformanceStyle = isCompleted ? getCardStyle(completedData.percentage) : {};
 
                             return (
@@ -477,27 +442,26 @@ export default function QuizScreen({ navigation }) {
                                     key={index}
                                     style={[
                                         styles.card,
-                                        { // Default liquid glass styles
+                                        {
                                             backgroundColor: 'rgba(255, 255, 255, 0.2)',
                                             borderColor: 'rgba(255, 255, 255, 0.7)',
-                                            shadowColor: 'rgba(255, 240, 200, 0.8)', // Sunrise Glow
+                                            shadowColor: 'rgba(255, 240, 200, 0.8)',
                                             shadowRadius: 10,
                                             elevation: 15,
-                                            overflow: 'hidden', // Ensures content is clipped by border radius
+                                            overflow: 'hidden',
                                         },
-                                        // OVERRIDE with performance styles if quiz is completed
                                         isCompleted && {
                                             backgroundColor: cardPerformanceStyle.backgroundColor,
                                             borderColor: cardPerformanceStyle.borderColor,
-                                            shadowColor: cardPerformanceStyle.borderColor, // Glow takes border color
-                                            shadowRadius: 15, // More pronounced glow
-                                            elevation: 18, // Slightly higher elevation
+                                            shadowColor: cardPerformanceStyle.borderColor,
+                                            shadowRadius: 15,
+                                            elevation: 18,
                                         }
                                     ]}
                                 >
-                                    <TouchableOpacity // Keep TouchableOpacity for interaction
+                                    <TouchableOpacity
                                         onPress={() => startQuiz(quiz)}
-                                        style={styles.cardInnerTouch} // Internal style for touch
+                                        style={styles.cardInnerTouch}
                                     >
                                         <View style={styles.cardHeader}>
                                             <Text style={styles.quizTitle}>{quiz.name}</Text>
@@ -517,7 +481,7 @@ export default function QuizScreen({ navigation }) {
                                                 <Text style={[
                                                     styles.completedScore,
                                                     {
-                                                        color: cardPerformanceStyle.borderColor // Use border color for score
+                                                        color: cardPerformanceStyle.borderColor
                                                     }
                                                 ]}>
                                                     {getPerformanceEmoji(completedData.percentage)} Your score: {completedData.score}/{completedData.totalPoints} ({completedData.percentage}%)
@@ -537,7 +501,6 @@ export default function QuizScreen({ navigation }) {
                     </ScrollView>
                 )}
 
-                {/* Quiz Modal */}
                 <Modal visible={showModal} animationType="slide" transparent={true}>
                     <View style={styles.modalContainer}>
                         <BlurView intensity={80} tint="light" style={styles.quizModal}>
@@ -566,7 +529,6 @@ export default function QuizScreen({ navigation }) {
                                                             ? styles.correctAnswer
                                                             : styles.wrongAnswer
                                                     ),
-                                                    // Liquid glass styles for answer buttons
                                                     {
                                                         backgroundColor: selectedAnswerIndex === i ? undefined : 'rgba(255, 255, 255, 0.4)',
                                                         borderColor: selectedAnswerIndex === i ? undefined : 'rgba(255, 255, 255, 0.7)',
@@ -575,7 +537,7 @@ export default function QuizScreen({ navigation }) {
                                                         shadowOpacity: 0.15,
                                                         shadowRadius: 5,
                                                         elevation: 8,
-                                                        overflow: 'hidden', // Ensures content is clipped by border radius
+                                                        overflow: 'hidden',
                                                     }
                                                 ]}
                                                 onPress={() => handleAnswer(i)}
@@ -590,7 +552,6 @@ export default function QuizScreen({ navigation }) {
                                             </TouchableOpacity>
                                         ))}
 
-                                        {/* FUN FACT - Only if correct answer */}
                                         {selectedAnswerIndex !== null &&
                                             selectedAnswerIndex === selectedQuiz.quiz[currentQuestionIndex].bonneReponseIndex && (
                                                 <BlurView intensity={40} tint="light" style={styles.funFactContainer}>
@@ -601,7 +562,6 @@ export default function QuizScreen({ navigation }) {
                                                 </BlurView>
                                             )}
 
-                                        {/* NEXT QUESTION BUTTON - Appears after answer */}
                                         {selectedAnswerIndex !== null && (
                                             <TouchableOpacity
                                                 style={styles.nextQuestionButton}
@@ -618,7 +578,7 @@ export default function QuizScreen({ navigation }) {
                                     </>
                                 ) : null
                             ) : (
-                                <View style={styles.resultsContainer}> {/* Corrected: removed leading comment and ensured single root */}
+                                <View style={styles.resultsContainer}>
                                     <Text style={styles.resultsTitle}>🎉 Quiz Completed!</Text>
                                     <Text style={styles.resultsScore}>
                                         Score: {quizScore}/{selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)}
@@ -627,7 +587,6 @@ export default function QuizScreen({ navigation }) {
                                         {Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100)}%
                                     </Text>
 
-                                    {/* MESSAGE BASED ON PERFORMANCE */}
                                     {(() => {
                                         const percentage = Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100);
                                         if (percentage === 100) {
@@ -673,7 +632,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    // Main "Liquid Glass" container for the screen
     glass: {
         width: '95%',
         height: '88%',
@@ -687,7 +645,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 1,
         shadowRadius: 40,
         elevation: 60,
-        overflow: 'hidden', // Ensures content is clipped by border radius
+        overflow: 'hidden',
     },
     emptyState: {
         flex: 1,
@@ -710,7 +668,7 @@ const styles = StyleSheet.create({
         width: '80%',
         height: 60,
         borderRadius: 30,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)', // Liquid glass button
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1.8,
         borderColor: 'rgba(255, 255, 255, 0.7)',
         shadowColor: 'rgba(255, 240, 200, 0.9)',
@@ -749,13 +707,12 @@ const styles = StyleSheet.create({
         paddingBottom: 30,
         paddingHorizontal: 5,
     },
-    // Quiz Card (Liquid Glass)
     card: {
         borderRadius: 20,
         padding: 15,
         marginBottom: 15,
         borderWidth: 2,
-        overflow: 'hidden', // Ensures content is clipped by border radius
+        overflow: 'hidden',
     },
     cardInnerTouch: {
         flex: 1,
@@ -803,7 +760,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: 'rgba(0,0,0,0.6)',
     },
-    // Quiz Modal (Liquid Glass)
     quizModal: {
         width: '90%',
         maxHeight: '85%',
@@ -817,7 +773,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 1,
         shadowRadius: 35,
         elevation: 50,
-        overflow: 'hidden', // Ensures content is clipped by border radius
+        overflow: 'hidden',
     },
     quizHeader: {
         alignItems: 'center',
@@ -855,13 +811,12 @@ const styles = StyleSheet.create({
         color: '#4a4a4a',
         lineHeight: 25,
     },
-    // Answer button (Liquid Glass)
     answerButton: {
         padding: 15,
         borderRadius: 15,
         marginVertical: 8,
         borderWidth: 2,
-        overflow: 'hidden', // Ensures content is clipped by border radius
+        overflow: 'hidden',
     },
     answerText: {
         fontSize: 16,
@@ -869,7 +824,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#4a4a4a',
     },
-    // Answers: colors adjusted to be vibrant but consistent
     correctAnswer: {
         backgroundColor: 'rgba(76, 175, 80, 0.8)',
         borderColor: '#4CAF50',
@@ -888,7 +842,6 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 10,
     },
-    // Fun Fact (Liquid Glass)
     funFactContainer: {
         borderRadius: 15,
         padding: 18,
@@ -896,7 +849,6 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         borderLeftWidth: 5,
         borderLeftColor: '#FF9800',
-        // Internal glass styles
         backgroundColor: 'rgba(255, 255, 255, 0.3)',
         borderColor: 'rgba(255, 255, 255, 0.7)',
         shadowColor: 'rgba(0,0,0,0.1)',
@@ -904,7 +856,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 8,
         elevation: 10,
-        overflow: 'hidden', // Ensures content is clipped by border radius
+        overflow: 'hidden',
     },
     funFactTitle: {
         fontSize: 16,
@@ -919,14 +871,12 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         fontStyle: 'italic',
     },
-    // Next question/results button (Liquid Glass)
     nextQuestionButton: {
         justifyContent: 'center',
         alignItems: 'center',
         height: 55,
         borderRadius: 30,
         marginTop: 20,
-        // Liquid glass styles
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderWidth: 1.8,
         borderColor: 'rgba(255, 255, 255, 0.7)',
@@ -944,7 +894,6 @@ const styles = StyleSheet.create({
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
-    // Results container (Liquid Glass)
     resultsContainer: {
         alignItems: 'center',
         padding: 25,
@@ -957,7 +906,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 1,
         shadowRadius: 35,
         elevation: 50,
-        overflow: 'hidden', // Ensures content is clipped by border radius
+        overflow: 'hidden',
     },
     resultsTitle: {
         fontSize: 28,
@@ -1020,7 +969,6 @@ const styles = StyleSheet.create({
         marginBottom: 30,
         lineHeight: 22,
     },
-    // Close results button (Liquid Glass)
     closeButton: {
         justifyContent: 'center',
         alignItems: 'center',

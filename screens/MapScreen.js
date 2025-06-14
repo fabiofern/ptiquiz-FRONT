@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState, useRef } from "react";
-import { View, StyleSheet, ActivityIndicator, Text, Image, TouchableOpacity, Animated } from "react-native";
+import { View, StyleSheet, ActivityIndicator, Text, Image, TouchableOpacity, Animated, Modal } from "react-native";
 import MapView, { Marker, Callout } from "react-native-maps";
 import * as Location from "expo-location";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +10,11 @@ import { BlurView } from 'expo-blur';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import DuelInvitationModal from '../components/DuelInvitationModal';
+
+// 🌍 IMPORTATION MAP SOCIALE
+import SocialLocationService from '../services/SocialLocationService';
+import UserMarker from '../components/UserMarker';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,6 +29,17 @@ export default function MapScreen() {
   const [quizLocations, setQuizLocations] = useState([]);
   const [apiLoading, setApiLoading] = useState(true);
 
+  // 🌍 ÉTATS MAP SOCIALE
+  const [nearbyUsers, setNearbyUsers] = useState([]);
+  const [socialTracking, setSocialTracking] = useState(false);
+  const [socialVisible, setSocialVisible] = useState(false);
+  const [showSocialUsers, setShowSocialUsers] = useState(true); // Toggle pour afficher/masquer
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+
+  const [duelInvitation, setDuelInvitation] = useState(null);
+  const [showDuelModal, setShowDuelModal] = useState(false);
+
   const mapRef = useRef(null);
   const hasLocationPermission = userData?.locationPermissions?.foreground;
 
@@ -35,6 +50,17 @@ export default function MapScreen() {
     "Fustat-Regular.ttf": require("../assets/fonts/Fustat-Regular.ttf"),
     "Fustat-SemiBold.ttf": require("../assets/fonts/Fustat-SemiBold.ttf"),
   });
+  const handleUserPress = (user) => {
+    setSelectedUser(user);
+    setShowUserProfile(true);
+  };
+
+  const closeUserProfile = () => {
+    setShowUserProfile(false);
+    setTimeout(() => {
+      setSelectedUser(null);
+    }, 300);
+  };
 
   useEffect(() => {
     if (loaded) {
@@ -55,6 +81,71 @@ export default function MapScreen() {
     PERFECT: 'perfect'
   };
 
+  // 🌍 INITIALISATION MAP SOCIALE
+  useEffect(() => {
+    const initSocialMap = async () => {
+      if (!userData?.userID || !isLoggedIn) return;
+
+      try {
+        // Configurer l'URL API
+        SocialLocationService.apiBaseUrl = URL;
+
+        // Initialiser le service
+        const initialized = await SocialLocationService.initializeLocationService();
+        if (initialized) {
+          console.log('🌍 Service social map initialisé');
+        }
+      } catch (error) {
+        console.error('❌ Erreur init social map:', error);
+      }
+    };
+
+    initSocialMap();
+
+    // Cleanup
+    return () => {
+      SocialLocationService.cleanup();
+    };
+  }, [userData?.userID, isLoggedIn]);
+
+  // 🚀 DÉMARRER LE TRACKING SOCIAL quand on a la position
+  useEffect(() => {
+    if (!userLocation || !userData?.userID || socialTracking) return;
+
+    const startSocialTracking = async () => {
+      try {
+        console.log('🚀 Démarrage tracking social...');
+
+        // 🔧 CONFIGURER LE CALLBACK EN PREMIER !
+        SocialLocationService.onLocationUpdate = (result) => {
+          console.log('🔍 DEBUG - Callback appelé !');
+          console.log('🔍 DEBUG - Callback result:', result);
+
+          if (result && result.success) {
+            console.log('🔍 DEBUG - Avant setNearbyUsers, length:', result.nearbyUsers?.length);
+            setNearbyUsers(result.nearbyUsers || []);
+            setSocialVisible(result.isVisible);
+            console.log('🔍 DEBUG - Après setNearbyUsers');
+
+            console.log(`👥 ${result.nearbyUsers.length} utilisateurs à proximité`);
+            console.log(`👁️ Visible: ${result.isVisible}, SafePlace: ${result.inSafePlace}`);
+          }
+        };
+
+        // PUIS démarrer le tracking
+        const success = await SocialLocationService.startLocationTracking(userData.userID);
+        console.log('🔍 DEBUG - tracking success:', success);
+
+        if (success) {
+          setSocialTracking(true);
+        }
+      } catch (error) {
+        console.error('❌ Erreur tracking social:', error);
+      }
+    };
+
+    startSocialTracking();
+  }, [userLocation, userData?.userID, socialTracking]);
   // Fonction pour récupérer les quiz depuis l'API
   const fetchQuizFromAPI = async () => {
     try {
@@ -69,7 +160,6 @@ export default function MapScreen() {
       });
 
       if (!response.ok) {
-        // Si la réponse n'est pas OK (statut 4xx ou 5xx), tentez de lire comme texte
         const errorText = await response.text();
         throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
       }
@@ -116,7 +206,6 @@ export default function MapScreen() {
     const completedQuiz = userData?.completedQuizzes?.[quizId];
 
     if (completedQuiz) {
-      // Utiliser le pourcentage pour déterminer si c'est parfait
       return completedQuiz.percentage === 100 ? QUIZ_STATES.PERFECT : QUIZ_STATES.COMPLETED;
     }
 
@@ -217,7 +306,6 @@ export default function MapScreen() {
 
     return (
       <View style={styles.customPinContainer}>
-        {/* Animation pulse pour les quiz débloqués */}
         {state === QUIZ_STATES.UNLOCKED && (
           <Animated.View style={[
             styles.pulseAnimation,
@@ -225,16 +313,13 @@ export default function MapScreen() {
           ]} />
         )}
 
-        {/* Pin principal en "liquid glass" */}
         <LinearGradient
           colors={['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.6)']}
           style={styles.customPin}
         >
-          {/* FontAwesome est maintenant enfant direct de LinearGradient */}
           <FontAwesome name={icon} size={20} color={color} />
         </LinearGradient>
 
-        {/* Petit indicateur en bas */}
         <View style={[styles.pinBottom, { backgroundColor: color, borderColor: 'rgba(255, 255, 255, 0.8)' }]} />
       </View>
     );
@@ -281,7 +366,6 @@ export default function MapScreen() {
           colors={['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.6)']}
           style={styles.userPin}
         >
-          {/* FontAwesome est maintenant enfant direct de LinearGradient */}
           <FontAwesome name="user" size={16} color="#FF7043" />
         </LinearGradient>
       </View>
@@ -352,7 +436,6 @@ export default function MapScreen() {
           }),
         });
 
-        // Tente de lire la réponse comme JSON. Si ça échoue, lis comme texte.
         let data;
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.indexOf('application/json') !== -1) {
@@ -402,7 +485,6 @@ export default function MapScreen() {
   if (isLoading || apiLoading) {
     return (
       <LinearGradient
-        // Dégradé de couleurs pour le fond : Rayon de Soleil
         colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -419,7 +501,6 @@ export default function MapScreen() {
   if (!hasLocationPermission) {
     return (
       <LinearGradient
-        // Dégradé de couleurs pour le fond : Rayon de Soleil
         colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -438,7 +519,6 @@ export default function MapScreen() {
   if (locationError || !userLocation) {
     return (
       <LinearGradient
-        // Dégradé de couleurs pour le fond : Rayon de Soleil
         colors={['#FFF3E0', '#FFE0B2', '#FFCC80']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -456,13 +536,13 @@ export default function MapScreen() {
 
   const totalScore = calculateUserTotalScore();
   const unlockedCount = quizLocations.filter(quiz => isQuizUnlocked(quiz)).length;
-
+  console.log('🔍 DEBUG - nearbyUsers avant render:', nearbyUsers);
+  console.log('🔍 DEBUG - showSocialUsers:', showSocialUsers);
   return (
     <View style={styles.container}>
       {/* ENCADREMENT TIQUIZ GLASSMORPHISM */}
       <BlurView intensity={80} style={styles.headerFrame}>
         <LinearGradient
-          // Dégradé translucide de la palette "Rayon de Soleil"
           colors={['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.1)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -474,10 +554,27 @@ export default function MapScreen() {
               <Text style={styles.headerSubtitle}>
                 {unlockedCount}/{quizLocations.length} quiz débloqués
               </Text>
+              {/* 🌍 INDICATEUR SOCIAL */}
+              <View style={styles.socialIndicator}>
+                <Text style={styles.socialText}>
+                  {socialVisible ? '👁️' : '👻'} {nearbyUsers.length} joueurs
+                </Text>
+              </View>
             </View>
             <View style={styles.headerRight}>
               <Text style={styles.scoreLabel}>Score</Text>
               <Text style={styles.scoreValue}>{totalScore}</Text>
+              {/* 🎛️ TOGGLE UTILISATEURS SOCIAUX */}
+              <TouchableOpacity
+                style={styles.socialToggle}
+                onPress={() => setShowSocialUsers(!showSocialUsers)}
+              >
+                <FontAwesome
+                  name={showSocialUsers ? "users" : "user"}
+                  size={14}
+                  color={showSocialUsers ? "#4CAF50" : "#999"}
+                />
+              </TouchableOpacity>
             </View>
           </View>
         </LinearGradient>
@@ -503,6 +600,15 @@ export default function MapScreen() {
         >
           <UserPin />
         </Marker>
+
+        {/* 👥 UTILISATEURS SOCIAUX (avec ton style) */}
+        {showSocialUsers && nearbyUsers.map((user) => (
+          <UserMarker
+            key={user.id}
+            user={user}
+            onPress={handleUserPress} // Pour garder la cohérence visuelle
+          />
+        ))}
 
         {/* Pins des quiz avec composants custom */}
         {quizLocations.map((quiz) => (
@@ -548,10 +654,9 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* LÉGENDE ÉLÉGANTE */}
+      {/* LÉGENDE ÉLÉGANTE MISE À JOUR */}
       <BlurView intensity={80} style={styles.legendFrame}>
         <LinearGradient
-          // Dégradé translucide de la palette "Rayon de Soleil"
           colors={['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.1)']}
           style={styles.legendGradient}
         >
@@ -572,11 +677,217 @@ export default function MapScreen() {
               <FontAwesome name="trophy" size={12} color="#4CAF50" />
               <Text style={styles.legendText}>Parfait</Text>
             </View>
+            {/* 👥 NOUVEAU : Indicateur joueurs */}
+            {showSocialUsers && (
+              <View style={styles.legendItem}>
+                <FontAwesome name="users" size={12} color="#9C27B0" />
+                <Text style={styles.legendText}>Joueurs</Text>
+              </View>
+            )}
           </View>
         </LinearGradient>
       </BlurView>
+      {selectedUser && (
+        <Modal
+          visible={showUserProfile}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeUserProfile}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* 🔝 Header avec avatar et infos principales */}
+              <View style={styles.profileHeader}>
+                <View style={styles.profileAvatarContainer}>
+                  {selectedUser.avatar ? (
+                    <Image source={{ uri: selectedUser.avatar }} style={styles.profileAvatar} />
+                  ) : (
+                    <View style={[styles.profileAvatar, styles.defaultAvatarLarge]}>
+                      <Text style={styles.profileAvatarText}>
+                        {selectedUser.username.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileUsername}>{selectedUser.username}</Text>
+                  <Text style={styles.profileTitle}>{selectedUser.achievements?.title || 'Aventurier'}</Text>
+
+                  {/* 🆕 RANG DE DUELLISTE */}
+                  {selectedUser.duelStats && (
+                    <View style={styles.duelRankContainer}>
+                      <Text style={styles.duelRankIcon}>
+                        {selectedUser.duelStats.rank === 'Champion Légendaire' ? '👑' :
+                          selectedUser.duelStats.rank === 'Maître Duelliste' ? '⚔️' :
+                            selectedUser.duelStats.rank === 'Guerrier Expérimenté' ? '🛡️' :
+                              selectedUser.duelStats.rank === 'Combattant' ? '⚡' :
+                                selectedUser.duelStats.rank === 'Apprenti Guerrier' ? '🗡️' : '🛡️'}
+                      </Text>
+                      <Text style={styles.duelRankText}>{selectedUser.duelStats?.rank || 'Recrue'}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={closeUserProfile}
+                >
+                  <FontAwesome name="times" size={16} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {/* 🏆 Trophée principal */}
+              <LinearGradient
+                colors={['#FFD700', '#FFA500']}
+                style={styles.mainTrophyContainer}
+              >
+                <Text style={styles.trophyIconLarge}>
+                  {selectedUser.achievements?.trophy?.includes('Diamant') ? '💎' :
+                    selectedUser.achievements?.trophy?.includes('Or') ? '🥇' :
+                      selectedUser.achievements?.trophy?.includes('Argent') ? '🥈' :
+                        selectedUser.achievements?.trophy?.includes('Bronze') ? '🥉' :
+                          selectedUser.achievements?.trophy?.includes('Feu') ? '🔥' :
+                            selectedUser.achievements?.trophy?.includes('Éclair') ? '⚡' :
+                              selectedUser.achievements?.trophy?.includes('Étoile') ? '⭐' : '🎯'}
+                </Text>
+                <Text style={styles.trophyTitle}>{selectedUser.achievements?.trophy || 'Explorateur TiQuiz'}</Text>
+              </LinearGradient>
+
+              {/* 📊 Stats Quiz */}
+              <Text style={styles.sectionTitle}>🎯 Statistiques Quiz</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{selectedUser.achievements?.totalBadges || 0}</Text>
+                  <Text style={styles.statLabel}>Badges</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{selectedUser.achievements?.perfectQuizzes || 0}</Text>
+                  <Text style={styles.statLabel}>Quiz Parfaits</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{selectedUser.achievements?.bestStreak || 0}</Text>
+                  <Text style={styles.statLabel}>Meilleur Streak</Text>
+                </View>
+              </View>
+
+              {/* 🆕 SECTION STATS DUELS */}
+              {selectedUser.duelStats && (
+                <>
+                  <Text style={styles.sectionTitle}>⚔️ Statistiques Duels</Text>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statCard}>
+                      <Text style={[styles.statNumber, { color: '#4CAF50' }]}>
+                        {selectedUser.duelStats.victories || 0}
+                      </Text>
+                      <Text style={styles.statLabel}>Victoires</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={[styles.statNumber, { color: '#F44336' }]}>
+                        {selectedUser.duelStats.defeats || 0}
+                      </Text>
+                      <Text style={styles.statLabel}>Défaites</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={[styles.statNumber, { color: '#FF9800' }]}>
+                        {selectedUser.duelStats.winRate || 0}%
+                      </Text>
+                      <Text style={styles.statLabel}>Taux Victoire</Text>
+                    </View>
+                  </View>
+
+                  {/* 🆕 HISTORIQUE ENTRE VOUS DEUX */}
+                  {selectedUser.duelStats.vsYou && selectedUser.duelStats.vsYou.length > 0 && (
+                    <View style={styles.duelHistorySection}>
+                      <Text style={styles.sectionTitle}>🥊 Vos Affrontements</Text>
+                      <View style={styles.duelHistoryContainer}>
+                        <View style={styles.duelSummary}>
+                          <Text style={styles.duelSummaryText}>
+                            Victoires: {selectedUser.duelStats.vsYou.filter(d => d.winner === selectedUser.id).length} -
+                            {selectedUser.duelStats.vsYou.filter(d => d.winner === userData.userID).length}
+                          </Text>
+                        </View>
+
+                        {/* Derniers duels */}
+                        <View style={styles.recentDuelsContainer}>
+                          {selectedUser.duelStats.vsYou.slice(0, 3).map((duel, index) => (
+                            <View key={index} style={styles.duelHistoryItem}>
+                              <View style={[
+                                styles.duelResultDot,
+                                { backgroundColor: duel.winner === selectedUser.id ? '#F44336' : '#4CAF50' }
+                              ]} />
+                              <Text style={styles.duelHistoryText}>
+                                {duel.playerScore} - {duel.opponentScore}
+                              </Text>
+                              <Text style={styles.duelHistoryDate}>
+                                {new Date(duel.date).toLocaleDateString()}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* 🏅 Badges (si existants) */}
+              {selectedUser.badges && selectedUser.badges.length > 0 && (
+                <View style={styles.badgesSection}>
+                  <Text style={styles.sectionTitle}>🏅 Derniers Badges</Text>
+                  <View style={styles.badgesContainer}>
+                    {selectedUser.badges.slice(0, 6).map((badge, index) => (
+                      <View key={index} style={styles.badgeChip}>
+                        <Text style={styles.badgeEmoji}>🏅</Text>
+                        <Text style={styles.badgeName}>{badge.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* 🎮 Actions */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.duelButton]}
+                  onPress={() => {
+                    // Logique pour défier le joueur
+                    closeUserProfile();
+                    // Déclencher le duel
+                  }}
+                >
+                  <FontAwesome name="bolt" size={16} color="#fff" />
+                  <Text style={[styles.actionText, { color: '#fff' }]}>Défier ⚔️</Text>
+                </TouchableOpacity>
+
+                {selectedUser.canReceiveMessages && (
+                  <TouchableOpacity style={styles.actionButton}>
+                    <FontAwesome name="comments" size={16} color="#4A90E2" />
+                    <Text style={styles.actionText}>Message</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+      <DuelInvitationModal
+        visible={showDuelModal}
+        onClose={() => setShowDuelModal(false)}
+        challengerData={duelInvitation?.challenger}
+        duelId={duelInvitation?.duelId}
+        onAccept={(duel) => {
+          setShowDuelModal(false);
+          // Navigation vers l'écran de jeu
+        }}
+        onDecline={() => {
+          setShowDuelModal(false);
+          setDuelInvitation(null);
+        }}
+      />
     </View>
   );
+
 }
 
 const styles = StyleSheet.create({
@@ -627,8 +938,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.7)',
-
-    // Effet de lueur et d'ombre pour le volume "liquid glass"
     shadowColor: 'rgba(255, 240, 200, 1)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
@@ -657,6 +966,15 @@ const styles = StyleSheet.create({
     fontFamily: "Fustat-Regular.ttf",
     color: '#4a4a4a',
   },
+  // 🌍 NOUVEAUX STYLES SOCIAUX
+  socialIndicator: {
+    marginTop: 2,
+  },
+  socialText: {
+    fontSize: 10,
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#9C27B0',
+  },
   headerRight: {
     alignItems: 'center',
   },
@@ -670,6 +988,12 @@ const styles = StyleSheet.create({
     fontFamily: "Fustat-ExtraBold.ttf",
     color: '#FF9800',
   },
+  socialToggle: {
+    marginTop: 4,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
 
   // Legend frame (Liquid Glass)
   legendFrame: {
@@ -681,8 +1005,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.7)',
-
-    // Effet de lueur et d'ombre pour le volume "liquid glass"
     shadowColor: 'rgba(255, 240, 200, 1)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
@@ -722,13 +1044,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.9)',
-    // Ombre pour la profondeur de la bulle
     shadowColor: 'rgba(0, 0, 0, 0.15)',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 10,
-    overflow: 'hidden', // Ajout de l'overflow ici
+    overflow: 'hidden',
   },
   pinBottom: {
     width: 8,
@@ -757,13 +1078,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.9)',
-    // Ombre pour la profondeur de la bulle
     shadowColor: 'rgba(0, 0, 0, 0.15)',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 10,
-    overflow: 'hidden', // Ajout de l'overflow ici
+    overflow: 'hidden',
   },
   userPulse: {
     position: 'absolute',
@@ -772,19 +1092,23 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
 
+  // 🌍 STYLE POUR LES MARQUEURS SOCIAUX
+  socialUserMarker: {
+    // S'intègre avec le style liquid glass existant
+  },
+
   // Callout styling (Optimisé pour la lisibilité)
   calloutContainer: {
     width: 280,
     padding: 15,
     borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    // Optionnel: ajouter une légère ombre si supporté par Callout
     shadowColor: 'rgba(0,0,0,0.2)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 5,
-    overflow: 'hidden', // Ajout de l'overflow ici
+    overflow: 'hidden',
   },
   calloutTitle: {
     fontSize: 18,
@@ -838,5 +1162,246 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 25,
+    padding: 24,
+    margin: 20,
+    maxWidth: 380,
+    width: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  profileAvatarContainer: {
+    marginRight: 16,
+  },
+  profileAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+  },
+  defaultAvatarLarge: {
+    backgroundColor: '#4A90E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileAvatarText: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+    fontFamily: "Fustat-ExtraBold.ttf",
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileUsername: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FF7043',
+    fontFamily: "Fustat-ExtraBold.ttf",
+  },
+  profileTitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 4,
+    fontFamily: "Fustat-SemiBold.ttf",
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mainTrophyContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+    padding: 20,
+    borderRadius: 20,
+  },
+  trophyIconLarge: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  trophyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    fontFamily: "Fustat-ExtraBold.ttf",
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  statCard: {
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    padding: 16,
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FF7043',
+    fontFamily: "Fustat-ExtraBold.ttf",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+    fontFamily: "Fustat-Regular.ttf",
+  },
+  badgesSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    fontFamily: "Fustat-SemiBold.ttf",
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE0B2',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    margin: 4,
+  },
+  badgeEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  badgeName: {
+    fontSize: 13,
+    color: '#FF7043',
+    fontWeight: '600',
+    fontFamily: "Fustat-SemiBold.ttf",
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minWidth: 120,
+    justifyContent: 'center',
+  },
+  actionText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: "Fustat-SemiBold.ttf",
+  },
+  // Styles pour les duels
+  duelRankContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  duelRankIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  duelRankText: {
+    fontSize: 12,
+    fontFamily: "Fustat-SemiBold.ttf",
+    color: '#FF9800',
+  },
+  duelHistorySection: {
+    marginBottom: 20,
+  },
+  duelHistoryContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
+  },
+  duelSummary: {
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  duelSummaryText: {
+    fontSize: 14,
+    fontFamily: "Fustat-SemiBold.ttf",
+    color: '#333',
+  },
+  recentDuelsContainer: {
+    gap: 8,
+  },
+  duelHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  duelResultDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  duelHistoryText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#333',
+  },
+  duelHistoryDate: {
+    fontSize: 11,
+    fontFamily: "Fustat-Regular.ttf",
+    color: '#999',
+  },
+  duelButton: {
+    backgroundColor: '#FF7043',
+  },
+
+  // Modifier le sectionTitle existant pour ajouter de l'espace
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    marginTop: 16,  // ← Ajouter ceci
+    fontFamily: "Fustat-SemiBold.ttf",
   },
 });

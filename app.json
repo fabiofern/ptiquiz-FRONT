@@ -7,9 +7,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/ddd.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFE0B2" 
     },
     "ios": {
       "supportsTablet": true,
@@ -25,8 +25,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/ddd.png",
+        "backgroundColor": "#FFE0B2" 
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
@@ -40,7 +40,7 @@
       "package": "com.fabioferdac.tonslug"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/ddd.png"
     },
     "plugins": [
       "expo-dev-client",
@@ -57,8 +57,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#ffffff"
+          "icon": "./assets/ddd.png",
+          "color": "#FFE0B2" 
         }
       ]
     ],
