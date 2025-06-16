@@ -176,12 +176,12 @@ export default function LoginScreen({ navigation }) {
         }
 
         if (!email.trim() || !signUpPassword.trim() || !confirmPassword.trim()) {
-            console.warn("Veuillez remplir tous les champs.");
+            alert.alert("Veuillez remplir tous les champs.");
             return;
         }
 
         if (signUpPassword !== confirmPassword) {
-            console.warn("Les mots de passe ne correspondent pas.");
+            alert.alert("Les mots de passe ne correspondent pas.");
             return;
         }
 
@@ -216,7 +216,7 @@ export default function LoginScreen({ navigation }) {
                     navigation.navigate('Avatar'); // Naviguer après inscription
                 } else {
                     dispatch(updateUser({ loading: false }));
-                    console.warn('utilisateur deja present');
+                    alert.alert('utilisateur deja present');
                 }
             })
             .catch(error => {
@@ -236,7 +236,7 @@ export default function LoginScreen({ navigation }) {
         console.log("Tentative de connection avec :", { email, logInPassword, });
 
         if (!email.trim() || !logInPassword.trim()) {
-            console.warn("Veuillez remplir tous les champs.");
+            alert.alert("Veuillez remplir tous les champs.");
             return;
         }
 
@@ -306,7 +306,7 @@ export default function LoginScreen({ navigation }) {
 
                 } else {
                     dispatch(updateUser({ loading: false }));
-                    console.warn("Nom d'utilisateur ou mot de passe incorrect.");
+                    alert.alert("Nom d'utilisateur ou mot de passe incorrect.");
                 }
             })
             .catch(error => {
