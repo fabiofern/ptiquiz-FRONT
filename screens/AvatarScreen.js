@@ -17,8 +17,11 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from "react-redux";
 import { updateUser } from "../redux/userSlice";
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 SplashScreen.preventAutoHideAsync();
+
+const URL = EXPO_PUBLIC_BACKEND_URL 
 
 const { width, height } = Dimensions.get("window"); // Get screen dimensions
 
@@ -162,7 +165,7 @@ export default function AvatarScreen({ navigation }) {
             console.log("💾 Sauvegarde profil en base...");
 
             // SAUVEGARDER EN BASE DE DONNÉES
-            const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/updateProfil`, {
+            const response = await fetch(`${URL}/users/updateProfil`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

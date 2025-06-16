@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 class SocialLocationService {
     constructor() {
@@ -10,10 +11,14 @@ class SocialLocationService {
         this.sendInterval = 30000; // 30 secondes pour l'envoi serveur
         this.minDistanceToSend = 100; // 100m minimum pour envoyer
         this.minSpeedChangeToSend = 5; // 5 km/h de différence minimum
-        this.apiBaseUrl = 'YOUR_API_URL';
+        this.apiBaseUrl = EXPO_PUBLIC_BACKEND_URL;
         this.pendingUpdate = null;
         this.sendTimer = null;
         this.onLocationUpdate = null;
+
+         if (!this.apiBaseUrl) {
+      console.warn('⚠️⚠️⚠️⚠️⚠️ BACKEND_URL non défini dans .env ⚠️⚠️⚠️⚠️⚠️');
+        }
     }
 
     // 📍 Initialiser le service de géolocalisation

@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSelector } from 'react-redux';
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,7 +18,7 @@ const DuelInvitationModal = ({
     onAccept,
     onDecline
 }) => {
-    const URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+    const URL = EXPO_PUBLIC_BACKEND_URL;
     const { userData } = useSelector((state) => state.user);
     const [isLoading, setIsLoading] = useState(false);
     const [actionType, setActionType] = useState(''); // 'accept' or 'decline'

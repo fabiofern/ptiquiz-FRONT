@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSelector } from 'react-redux';
 import { useFonts } from "expo-font";
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 const { width, height } = Dimensions.get('window');
 
@@ -76,7 +77,7 @@ const AuroraBackground = () => {
 };
 
 const DuelScreen = ({ navigation, route }) => {
-    const URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+    const URL = EXPO_PUBLIC_BACKEND_URL;
     const { userData } = useSelector((state) => state.user);
     const { duelId, challengerData } = route.params;
 

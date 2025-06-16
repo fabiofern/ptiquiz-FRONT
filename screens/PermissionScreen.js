@@ -7,10 +7,12 @@ import { updateLocationPermissions } from '../redux/userSlice';
 import { BlurView } from 'expo-blur';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function PermissionScreen({ navigation }) {
+    const URL = EXPO_PUBLIC_BACKEND_URL;
     const dispatch = useDispatch();
     const { userData } = useSelector((state) => state.user);
     const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +46,7 @@ export default function PermissionScreen({ navigation }) {
 
                 console.log('✅ Géolocalisation OK');
 
-                const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/locationPermissions`, {
+                const response = await fetch(`${URL}/users/locationPermissions`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

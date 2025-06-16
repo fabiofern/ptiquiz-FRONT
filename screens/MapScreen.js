@@ -11,6 +11,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import DuelInvitationModal from '../components/DuelInvitationModal';
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 // 🌍 IMPORTATION MAP SOCIALE
 import SocialLocationService from '../services/SocialLocationService';
@@ -19,7 +20,7 @@ import UserMarker from '../components/UserMarker';
 SplashScreen.preventAutoHideAsync();
 
 export default function MapScreen() {
-  const URL = process.env.EXPO_PUBLIC_BACKEND_URL
+  const URL = EXPO_PUBLIC_BACKEND_URL
   const dispatch = useDispatch();
   const { userData, isLoggedIn } = useSelector((state) => state.user);
 

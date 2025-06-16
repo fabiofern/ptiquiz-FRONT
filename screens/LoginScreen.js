@@ -10,10 +10,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { BlurView } from 'expo-blur';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateUser } from '../redux/userSlice';
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
+
 
 SplashScreen.preventAutoHideAsync();
 
-const URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const URL = EXPO_PUBLIC_BACKEND_URL;
 // Dimensions de l'écran (lecture directe, mais les valeurs Animated.Value seront initialisées dans useEffect)
 const { width, height } = Dimensions.get('window');
 

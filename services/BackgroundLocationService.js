@@ -3,6 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 const STORAGE_KEYS = {
@@ -11,7 +12,7 @@ const STORAGE_KEYS = {
     LAST_CHECK_DATE: '@tiquiz_last_check_date',
     NOTIFICATION_SENT_TODAY: '@tiquiz_notification_today'
 };
-
+const URL = EXPO_PUBLIC_BACKEND_URL
 // 📱 CONFIGURATION DES NOTIFICATIONS
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -429,7 +430,7 @@ class BackgroundLocationService {
 
             console.log(`🔍 Vérification ${positions.length} positions contre BDD...`);
 
-            const response = await fetch('https://your-backend.com/api/quiz/check-batch', {
+            const response = await fetch(`${URL}/api/quiz/check-batch`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

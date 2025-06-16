@@ -1,7 +1,7 @@
 // services/QuizService.js - Services pour gérer les quiz débloqués
-
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 const API_BASE_URL = 'http://192.168.2.16:3000'; // Remplace par ton IP
-
+const URL = EXPO_PUBLIC_BACKEND_URL
 export class QuizService {
 
     // 🗺️ Récupérer tous les quiz avec leurs états pour MapScreen
@@ -9,7 +9,7 @@ export class QuizService {
         try {
             console.log('📊 Récupération statut quiz pour map...');
 
-            const response = await fetch(`${API_BASE_URL}/quizz/map-status/${userId}`, {
+            const response = await fetch(`${URL}/quizz/map-status/${userId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ export class QuizService {
         try {
             console.log('🔍 Vérification déverrouillages à la position:', userLatitude, userLongitude);
 
-            const response = await fetch(`${API_BASE_URL}/quizz/unlock/${userId}`, {
+            const response = await fetch(`${URL}/quizz/unlock/${userId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export class QuizService {
         try {
             console.log('📚 Récupération quiz débloqués...');
 
-            const response = await fetch(`${API_BASE_URL}/quizz/unlocked/${userId}`, {
+            const response = await fetch(`${URL}/quizz/unlocked/${userId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export class QuizService {
         try {
             console.log('💾 Sauvegarde résultat quiz:', { userId, quizId, score, totalPoints });
 
-            const response = await fetch(`${API_BASE_URL}/quizz/complete`, {
+            const response = await fetch(`${URL}/quizz/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -175,7 +175,7 @@ export class QuizService {
     static async checkQuizProximity(userId, quizId, latitude, longitude) {
         try {
             const response = await fetch(
-                `${API_BASE_URL}/quizz/check-proximity/${userId}/${quizId}?latitude=${latitude}&longitude=${longitude}`,
+                `${URL}/quizz/check-proximity/${userId}/${quizId}?latitude=${latitude}&longitude=${longitude}`,
                 {
                     method: 'GET',
                     headers: {

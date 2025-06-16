@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateUser } from '../redux/userSlice';
 import { RewardsService } from '../services/RewardsService';
 import { useFonts } from "expo-font";
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -99,7 +100,7 @@ const AuroraBackground = () => {
 };
 
 export default function QuizScreen({ navigation }) {
-    const URL = process.env.EXPO_PUBLIC_BACKEND_URL
+    const URL = EXPO_PUBLIC_BACKEND_URL
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
 

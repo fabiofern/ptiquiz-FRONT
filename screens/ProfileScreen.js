@@ -10,6 +10,7 @@ import { resetUser, updateUser } from '../redux/userSlice';
 import { RewardsService, MEDALS, TROPHIES, TITLES } from '../services/RewardsService';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -83,7 +84,7 @@ const AuroraBackground = () => {
 };
 
 export default function ProfileScreen({ navigation }) {
-    const URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+    const URL = EXPO_PUBLIC_BACKEND_URL;
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
     const [refreshKey, setRefreshKey] = useState(0);
