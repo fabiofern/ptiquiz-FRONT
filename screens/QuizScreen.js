@@ -100,7 +100,7 @@ const AuroraBackground = () => {
 };
 
 export default function QuizScreen({ navigation }) {
-    const URL = EXPO_PUBLIC_BACKEND_URL
+    const URL = EXPO_PUBLIC_BACKEND_URL;
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
 
@@ -146,7 +146,7 @@ export default function QuizScreen({ navigation }) {
             console.log('📚 Fetching unlocked quizzes from API...');
 
             const response = await fetch(`${URL}/quizz/unlocked/${userData.userID}`, {
-                
+
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -221,7 +221,7 @@ export default function QuizScreen({ navigation }) {
         try {
             console.log('💾 Saving quiz via API...');
 
-            const response = await fetch(`${URL}}/quizz/complete`, {
+            const response = await fetch(`${URL}/quizz/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -353,11 +353,11 @@ export default function QuizScreen({ navigation }) {
 
         if (isCompleted) {
             Alert.alert(
-                'Quiz already completed',
-                `You have already completed this quiz with ${isCompleted.score}/${isCompleted.totalPoints} points (${isCompleted.percentage}%). Do you want to try again?`,
+                'Quiz déjà terminé !', // MODIFIÉ
+                `Tu as déjà terminé ce quiz avec ${isCompleted.score}/${isCompleted.totalPoints} points (${isCompleted.percentage}%). Tu veux retenter ta chance ?`, // MODIFIÉ
                 [
-                    { text: 'No', style: 'cancel' },
-                    { text: 'Yes', onPress: () => initializeQuiz(quiz) }
+                    { text: 'Non, merci', style: 'cancel' }, // MODIFIÉ
+                    { text: 'Oui, j\'y vais !', onPress: () => initializeQuiz(quiz) } // MODIFIÉ
                 ]
             );
         } else {
@@ -390,7 +390,7 @@ export default function QuizScreen({ navigation }) {
                 <BlurView intensity={50} tint="light" style={styles.glass}>
                     <View style={styles.emptyState}>
                         <ActivityIndicator size="large" color="#FF7043" />
-                        <Text style={styles.message}>Loading quizzes...</Text>
+                        <Text style={styles.message}>QUIZ EN CHARGEMENT... Prépare tes méninges ! 🧠</Text> {/* MODIFIÉ */}
                     </View>
                 </BlurView>
             </LinearGradient>
@@ -411,23 +411,23 @@ export default function QuizScreen({ navigation }) {
             <BlurView intensity={50} tint="light" style={styles.glass}>
                 {unlockedQuizzes.length === 0 ? (
                     <View style={styles.emptyState}>
-                        <Text style={styles.message}>🧭 Wander around your city and unlock Tiquizzes!</Text>
+                        <Text style={styles.message}>🧭 Hmm, pas de quiz débloqué pour l'instant ! Explore la ville pour en trouver, aventurier(e) !</Text> {/* MODIFIÉ */}
                         <TouchableOpacity
                             style={styles.mapButton}
-                            onPress={() => navigation.navigate('MainApp')}
+                            onPress={() => navigation.navigate('MainApp', { screen: 'Map' })}
                         >
-                            <Text style={styles.mapButtonText}>See Map</Text>
+                            <Text style={styles.mapButtonText}>Voir la Carte 🗺️</Text> {/* MODIFIÉ */}
                         </TouchableOpacity>
                     </View>
                 ) : (
                     <ScrollView style={{ width: '100%' }} contentContainerStyle={styles.scrollContent}>
-                        <Text style={styles.title}>🎯 TIME TO PLAY</Text>
+                        <Text style={styles.title}>🎯 L'HEURE DU QUIZ A SONNÉ !</Text> {/* MODIFIÉ */}
                         <Text style={styles.subtitle}>
-                            🏆 Total Score: {calculateUserTotalScore()} points
-                        </Text>
+                            🏆 Score Total : {calculateUserTotalScore()} points. Impressionnant !
+                        </Text> {/* MODIFIÉ */}
                         <Text style={styles.subtitle}>
-                            🔓 {unlockedQuizzes.length} quizzes unlocked
-                        </Text>
+                            🔓 {unlockedQuizzes.length} quiz débloqués. À toi de jouer !
+                        </Text> {/* MODIFIÉ */}
 
                         {unlockedQuizzes.map((quiz, index) => {
                             const quizId = quiz._id?.$oid || quiz._id;
@@ -473,10 +473,10 @@ export default function QuizScreen({ navigation }) {
                                             )}
                                         </View>
                                         <Text style={styles.quizDesc}>📍 {quiz.arrondissement}</Text>
-                                        <Text style={styles.quizDesc}>🏅 {quiz.badgeDebloque}</Text>
+                                        <Text style={styles.quizDesc}>🏅 Badge : {quiz.badgeDebloque}</Text> {/* MODIFIÉ */}
                                         <Text style={styles.quizPoints}>
-                                            Available Points: {totalPoints}
-                                        </Text>
+                                            Points disponibles : {totalPoints}
+                                        </Text> {/* MODIFIÉ */}
                                         {isCompleted && (
                                             <>
                                                 <Text style={[
@@ -485,13 +485,13 @@ export default function QuizScreen({ navigation }) {
                                                         color: cardPerformanceStyle.borderColor
                                                     }
                                                 ]}>
-                                                    {getPerformanceEmoji(completedData.percentage)} Your score: {completedData.score}/{completedData.totalPoints} ({completedData.percentage}%)
-                                                </Text>
+                                                    {getPerformanceEmoji(completedData.percentage)} Ton score : {completedData.score}/{completedData.totalPoints} ({completedData.percentage}%)
+                                                </Text> {/* MODIFIÉ */}
                                                 <Text style={styles.performanceText}>
-                                                    {completedData.percentage === 100 ? '🏆 Perfect!' :
-                                                        completedData.percentage >= 80 ? '⭐ Excellent!' :
-                                                            completedData.percentage >= 70 ? '👍 Well done!' :
-                                                                '💪 You can do better!'}
+                                                    {completedData.percentage === 100 ? '🏆 Parfait ! Un sans-faute de champion !' : // MODIFIÉ
+                                                        completedData.percentage >= 80 ? '⭐ Excellent ! Tu es au top !' : // MODIFIÉ
+                                                            completedData.percentage >= 70 ? '👍 Bien joué ! Encore un petit effort !' : // MODIFIÉ
+                                                                '💪 Tu peux faire mieux ! Accroche-toi !'} {/* MODIFIÉ */}
                                                 </Text>
                                             </>
                                         )}
@@ -505,123 +505,126 @@ export default function QuizScreen({ navigation }) {
                 <Modal visible={showModal} animationType="slide" transparent={true}>
                     <View style={styles.modalContainer}>
                         <BlurView intensity={80} tint="light" style={styles.quizModal}>
-                            {!showResults ? (
-                                selectedQuiz && currentQuestionIndex < selectedQuiz.quiz.length ? (
-                                    <>
-                                        <View style={styles.quizHeader}>
-                                            <Text style={styles.quizName}>{selectedQuiz.name}</Text>
-                                            <Text style={styles.questionNumber}>
-                                                Question {currentQuestionIndex + 1}/{selectedQuiz.quiz.length}
-                                            </Text>
-                                            <Text style={styles.currentScore}>Score: {quizScore}</Text>
-                                        </View>
+                            <ScrollView
+                                contentContainerStyle={styles.scrollModalContent}
+                                showsVerticalScrollIndicator={false}
+                                bounces={false}
+                            >
+                                {!showResults ? (
+                                    selectedQuiz && currentQuestionIndex < selectedQuiz.quiz.length ? (
+                                        <>
+                                            <View style={styles.quizHeader}>
+                                                <Text style={styles.quizName}>{selectedQuiz.name}</Text>
+                                                <Text style={styles.questionNumber}>
+                                                    Question {currentQuestionIndex + 1}/{selectedQuiz.quiz.length}
+                                                </Text>
+                                                <Text style={styles.currentScore}>Score actuel : {quizScore}</Text> {/* MODIFIÉ */}
+                                            </View>
 
-                                        <Text style={styles.question}>
-                                            {selectedQuiz.quiz[currentQuestionIndex].question}
+                                            <Text style={styles.question}>
+                                                {selectedQuiz.quiz[currentQuestionIndex].question}
+                                            </Text>
+
+                                            {selectedQuiz.quiz[currentQuestionIndex].reponses.map((reponse, i) => (
+                                                <TouchableOpacity
+                                                    key={i}
+                                                    style={[
+                                                        styles.answerButton,
+                                                        selectedAnswerIndex === i && (
+                                                            i === selectedQuiz.quiz[currentQuestionIndex].bonneReponseIndex
+                                                                ? styles.correctAnswer
+                                                                : styles.wrongAnswer
+                                                        ),
+                                                        {
+                                                            backgroundColor: selectedAnswerIndex === i ? undefined : 'rgba(255, 255, 255, 0.4)',
+                                                            overflow: 'hidden',
+                                                        }
+                                                    ]}
+                                                    onPress={() => handleAnswer(i)}
+                                                    disabled={selectedAnswerIndex !== null}
+                                                >
+                                                    <Text style={[
+                                                        styles.answerText,
+                                                        selectedAnswerIndex === i && { color: 'white', fontWeight: '600' }
+                                                    ]}>
+                                                        {reponse}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                            {selectedAnswerIndex !== null &&
+                                                selectedAnswerIndex === selectedQuiz.quiz[currentQuestionIndex].bonneReponseIndex && (
+                                                    <BlurView intensity={40} tint="light" style={styles.funFactContainer}>
+                                                        {/* CORRECTION: Text */}
+                                                        <Text style={styles.funFactTitle}>💡 Le savais-tu ?</Text>
+                                                        <Text style={styles.funFactText}>
+                                                            {selectedQuiz.quiz[currentQuestionIndex].explication}
+                                                        </Text>
+                                                    </BlurView>
+                                                )}
+
+                                            {selectedAnswerIndex !== null && (
+                                                <TouchableOpacity
+                                                    style={styles.nextQuestionButton}
+                                                    onPress={handleNextQuestion}
+                                                >
+                                                    <Text style={styles.nextQuestionText}>
+                                                        {currentQuestionIndex + 1 < selectedQuiz.quiz.length
+                                                            ? "Question Suivante →"
+                                                            : "Voir les Résultats 🏆"
+                                                        }
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </>
+                                    ) : null
+                                ) : (
+                                    <View style={styles.resultsContainer}>
+                                        <Text style={styles.resultsTitle}>🎉 Quiz Terminé !</Text>
+                                        <Text style={styles.resultsScore}>
+                                            Ton score : {quizScore}/{selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)}
+                                        </Text>
+                                        <Text style={styles.resultsPercentage}>
+                                            {Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100)}%
                                         </Text>
 
-                                        {selectedQuiz.quiz[currentQuestionIndex].reponses.map((reponse, i) => (
-                                            <TouchableOpacity
-                                                key={i}
-                                                style={[
-                                                    styles.answerButton,
-                                                    selectedAnswerIndex === i && (
-                                                        i === selectedQuiz.quiz[currentQuestionIndex].bonneReponseIndex
-                                                            ? styles.correctAnswer
-                                                            : styles.wrongAnswer
-                                                    ),
-                                                    {
-                                                        backgroundColor: selectedAnswerIndex === i ? undefined : 'rgba(255, 255, 255, 0.4)',
-                                                        borderColor: selectedAnswerIndex === i ? undefined : 'rgba(255, 255, 255, 0.7)',
-                                                        shadowColor: 'rgba(0,0,0,0.1)',
-                                                        shadowOffset: { width: 0, height: 3 },
-                                                        shadowOpacity: 0.15,
-                                                        shadowRadius: 5,
-                                                        elevation: 8,
-                                                        overflow: 'hidden',
-                                                    }
-                                                ]}
-                                                onPress={() => handleAnswer(i)}
-                                                disabled={selectedAnswerIndex !== null}
-                                            >
-                                                <Text style={[
-                                                    styles.answerText,
-                                                    selectedAnswerIndex === i && { color: 'white', fontWeight: '600' }
-                                                ]}>
-                                                    {reponse}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
+                                        {(() => {
+                                            const percentage = Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100);
+                                            if (percentage === 100) {
+                                                return (
+                                                    <>
+                                                        <Text style={styles.perfectMessage}>🏆 PARFAIT ! Un génie est né !</Text>
+                                                        {/* CORRECTION: Text */}
+                                                        <Text style={styles.resultsBadge}>🏅 Badge & Titre : {selectedQuiz.badgeDebloque}</Text>
+                                                    </>
+                                                );
+                                            } else if (percentage >= 80) {
+                                                return (
+                                                    <>
+                                                        <Text style={styles.excellentMessage}>⭐ Excellent ! Des points bien mérités !</Text>
+                                                        {/* CORRECTION: Text */}
+                                                        <Text style={styles.resultsBadge}>🏅 Badge : {selectedQuiz.badgeDebloque}</Text>
+                                                    </>
+                                                );
+                                            } else if (percentage >= 70) {
+                                                return <Text style={styles.goodMessage}>👍 Bien joué ! Continue sur cette lancée !</Text>;
+                                            } else {
+                                                return <Text style={styles.tryAgainMessage}>💪 On ne lâche rien ! Retente ta chance pour les récompenses !</Text>;
+                                            }
+                                        })()}
 
-                                        {selectedAnswerIndex !== null &&
-                                            selectedAnswerIndex === selectedQuiz.quiz[currentQuestionIndex].bonneReponseIndex && (
-                                                <BlurView intensity={40} tint="light" style={styles.funFactContainer}>
-                                                    <Text style={styles.funFactTitle}>💡 Did you know?</Text>
-                                                    <Text style={styles.funFactText}>
-                                                        {selectedQuiz.quiz[currentQuestionIndex].explication}
-                                                    </Text>
-                                                </BlurView>
-                                            )}
-
-                                        {selectedAnswerIndex !== null && (
-                                            <TouchableOpacity
-                                                style={styles.nextQuestionButton}
-                                                onPress={handleNextQuestion}
-                                            >
-                                                <Text style={styles.nextQuestionText}>
-                                                    {currentQuestionIndex + 1 < selectedQuiz.quiz.length
-                                                        ? "Next Question →"
-                                                        : "See Results 🏆"
-                                                    }
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </>
-                                ) : null
-                            ) : (
-                                <View style={styles.resultsContainer}>
-                                    <Text style={styles.resultsTitle}>🎉 Quiz Completed!</Text>
-                                    <Text style={styles.resultsScore}>
-                                        Score: {quizScore}/{selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)}
-                                    </Text>
-                                    <Text style={styles.resultsPercentage}>
-                                        {Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100)}%
-                                    </Text>
-
-                                    {(() => {
-                                        const percentage = Math.round((quizScore / selectedQuiz.quiz.reduce((acc, q) => acc + q.points, 0)) * 100);
-                                        if (percentage === 100) {
-                                            return (
-                                                <>
-                                                    <Text style={styles.perfectMessage}>🏆 PERFECT! All rewards unlocked!</Text>
-                                                    <Text style={styles.resultsBadge}>🏅 Badge + Title: {selectedQuiz.badgeDebloque}</Text>
-                                                </>
-                                            );
-                                        } else if (percentage >= 80) {
-                                            return (
-                                                <>
-                                                    <Text style={styles.excellentMessage}>⭐ Excellent! Rewards unlocked!</Text>
-                                                    <Text style={styles.resultsBadge}>🏅 Badge: {selectedQuiz.badgeDebloque}</Text>
-                                                </>
-                                            );
-                                        } else if (percentage >= 70) {
-                                            return <Text style={styles.goodMessage}>👍 Well done! No reward this time.</Text>;
-                                        } else {
-                                            return <Text style={styles.tryAgainMessage}>💪 You can do better! Try again to unlock rewards!</Text>;
-                                        }
-                                    })()}
-
-                                    <TouchableOpacity
-                                        style={styles.closeButton}
-                                        onPress={closeQuiz}
-                                    >
-                                        <Text style={styles.closeText}>Continue</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
+                                        <TouchableOpacity
+                                            style={styles.closeButton}
+                                            onPress={closeQuiz}
+                                        >
+                                            <Text style={styles.closeText}>Continuer l'aventure !</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </ScrollView>
                         </BlurView>
                     </View>
                 </Modal>
+
             </BlurView>
         </LinearGradient>
     );
@@ -761,21 +764,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: 'rgba(0,0,0,0.6)',
     },
-    quizModal: {
-        width: '90%',
-        maxHeight: '85%',
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderRadius: 25,
-        padding: 25,
-        borderWidth: 3,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        shadowColor: 'rgba(255, 240, 200, 1)',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 35,
-        elevation: 50,
-        overflow: 'hidden',
-    },
     quizHeader: {
         alignItems: 'center',
         marginBottom: 20,
@@ -818,6 +806,12 @@ const styles = StyleSheet.create({
         marginVertical: 8,
         borderWidth: 2,
         overflow: 'hidden',
+        borderColor: 'rgba(255, 255, 255, 0.7)',
+        shadowColor: 'rgba(0,0,0,0.1)',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+        elevation: 8,
     },
     answerText: {
         fontSize: 16,
@@ -830,18 +824,18 @@ const styles = StyleSheet.create({
         borderColor: '#4CAF50',
         shadowColor: '#4CAF50',
         shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 10,
+        shadowOpacity: 0.8,
+        shadowRadius: 12,
+        elevation: 15,
     },
     wrongAnswer: {
         backgroundColor: 'rgba(244, 67, 54, 0.8)',
         borderColor: '#F44336',
         shadowColor: '#F44336',
         shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 10,
+        shadowOpacity: 0.8,
+        shadowRadius: 12,
+        elevation: 15,
     },
     funFactContainer: {
         borderRadius: 15,
@@ -993,5 +987,25 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.1)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+    },
+
+    scrollModalContent: {
+        flexGrow: 1,
+        paddingBottom: 20,
+    },
+    quizModal: {
+        width: '90%',
+        maxHeight: '85%',
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        borderRadius: 25,
+        padding: 25,
+        borderWidth: 3,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: 'rgba(255, 240, 200, 1)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 35,
+        elevation: 50,
+        overflow: 'hidden',
     },
 });

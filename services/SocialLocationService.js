@@ -7,17 +7,16 @@ class SocialLocationService {
         this.locationSubscription = null;
         this.lastKnownPosition = null;
         this.lastSentPosition = null;
-        this.updateInterval = 5000; // 5 secondes pour le tracking local
-        this.sendInterval = 30000; // 30 secondes pour l'envoi serveur
-        this.minDistanceToSend = 100; // 100m minimum pour envoyer
-        this.minSpeedChangeToSend = 5; // 5 km/h de différence minimum
+        this.updateInterval = 300000; // 5 minutes pour le tracking local
+        this.sendInterval = 3600000; // 1 HEURE pour l'envoi serveur
+        this.minDistanceToSend = 500; // 500m minimum pour envoyer
         this.apiBaseUrl = EXPO_PUBLIC_BACKEND_URL;
         this.pendingUpdate = null;
         this.sendTimer = null;
         this.onLocationUpdate = null;
 
-         if (!this.apiBaseUrl) {
-      console.warn('⚠️⚠️⚠️⚠️⚠️ BACKEND_URL non défini dans .env ⚠️⚠️⚠️⚠️⚠️');
+        if (!this.apiBaseUrl) {
+            console.warn('⚠️⚠️⚠️⚠️⚠️ BACKEND_URL non défini dans .env ⚠️⚠️⚠️⚠️⚠️');
         }
     }
 
@@ -47,7 +46,7 @@ class SocialLocationService {
 
             console.log('🎯 Démarrage tracking pour user:', userId);
 
-            // Timer d'envoi périodique (toutes les 30s)
+            // Timer d'envoi périodique (toutes les heures maintenant)
             this.sendTimer = setInterval(() => {
                 if (this.pendingUpdate) {
                     this.sendLocationUpdate(userId, this.pendingUpdate);
@@ -59,7 +58,7 @@ class SocialLocationService {
                 {
                     accuracy: Location.Accuracy.Balanced,
                     timeInterval: this.updateInterval,
-                    distanceInterval: 20, // Mise à jour tous les 20m minimum
+                    distanceInterval: 200, // 200m pour éviter le spam
                 },
                 (location) => {
                     this.handleLocationUpdate(userId, location);
@@ -99,9 +98,9 @@ class SocialLocationService {
 
             console.log(`📍 Position locale: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} - Vitesse: ${speedKmh.toFixed(1)} km/h`);
 
-            // 🔥 DÉCIDER SI ON DOIT ENVOYER AU SERVEUR
+            // 🔥 DÉCIDER SI ON DOIT ENVOYER AU SERVEUR (logique simplifiée)
             if (this.shouldSendUpdate(currentPosition)) {
-                console.log('🌐 Envoi immédiat au serveur (changement significatif)');
+                console.log('🌐 Envoi immédiat au serveur');
                 await this.sendLocationUpdate(userId, currentPosition);
                 this.pendingUpdate = null;
             } else {
@@ -117,16 +116,16 @@ class SocialLocationService {
         }
     }
 
-    // 🤔 Décider si on doit envoyer la mise à jour
+    // 🤔 Décider si on doit envoyer la mise à jour (TRÈS OCCASIONNEL)
     shouldSendUpdate(currentPosition) {
         if (!this.lastSentPosition) return true; // Premier envoi
 
         const timeDiff = (currentPosition.timestamp - this.lastSentPosition.timestamp) / 1000;
 
-        // Forcer l'envoi si plus de 2 minutes
-        if (timeDiff > 120) return true;
+        // Forcer l'envoi si plus d'1 HEURE (3600 secondes)
+        if (timeDiff > 3600) return true;
 
-        // Distance significative
+        // Distance significative (500m = vraiment bougé)
         const distance = this.calculateDistance(
             this.lastSentPosition.latitude, this.lastSentPosition.longitude,
             currentPosition.latitude, currentPosition.longitude
@@ -134,16 +133,7 @@ class SocialLocationService {
 
         if (distance > this.minDistanceToSend) return true;
 
-        // Changement de vitesse significatif
-        const speedDiff = Math.abs(currentPosition.speed - this.lastSentPosition.speed);
-        if (speedDiff > this.minSpeedChangeToSend) return true;
-
-        // Transition arrêt/mouvement importante
-        const wasMoving = this.lastSentPosition.speed > 2;
-        const isMoving = currentPosition.speed > 2;
-        if (wasMoving !== isMoving) return true;
-
-        return false; // Pas besoin d'envoyer
+        return false; // Sinon, pas d'envoi
     }
 
     // 🌐 Envoyer la position au serveur (fonction renommée pour clarté)

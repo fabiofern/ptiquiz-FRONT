@@ -1,3 +1,4 @@
+// components/UserMarker.js
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
@@ -7,21 +8,27 @@ const UserMarker = ({ user, onPress }) => {
 
     // 🏆 Icône de trophée simplifié
     const getTrophyIcon = (trophy) => {
-        if (trophy.includes('Diamant')) return '💎';
-        if (trophy.includes('Or')) return '🥇';
-        if (trophy.includes('Argent')) return '🥈';
-        if (trophy.includes('Bronze')) return '🥉';
-        if (trophy.includes('Feu')) return '🔥';
-        if (trophy.includes('Éclair')) return '⚡';
-        if (trophy.includes('Étoile')) return '⭐';
+        if (trophy && trophy.includes('Diamant')) return '💎';
+        if (trophy && trophy.includes('Or')) return '🥇';
+        if (trophy && trophy.includes('Argent')) return '🥈';
+        if (trophy && trophy.includes('Bronze')) return '🥉';
+        if (trophy && trophy.includes('Feu')) return '🔥';
+        if (trophy && trophy.includes('Éclair')) return '⚡';
+        if (trophy && trophy.includes('Étoile')) return '⭐';
         return '🎯';
     };
+
+    // Keep this vital check at the top
+    if (!user || !user.location || typeof user.location.latitude !== 'number' || typeof user.location.longitude !== 'number') {
+        console.warn("⚠️ UserMarker: Coordonnées de l'utilisateur invalides ou manquantes. User:", user);
+        return null;
+    }
 
     return (
         <Marker
             coordinate={{
-                latitude: user.coordinates.latitude,
-                longitude: user.coordinates.longitude,
+                latitude: user.location.latitude,
+                longitude: user.location.longitude,
             }}
         >
             {/* 🎯 AVATAR CLIQUABLE - TouchableOpacity autour de l'avatar */}
@@ -35,21 +42,25 @@ const UserMarker = ({ user, onPress }) => {
                     style={styles.avatarContainer}
                 >
                     {user.avatar ? (
-                        <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                        // MODIFIED: Added a background color for Image for better visibility/debugging
+                        <Image source={{ uri: user.avatar }} style={[styles.avatar, { backgroundColor: '#ccc' }]} />
                     ) : (
                         <View style={[styles.avatar, styles.defaultAvatar]}>
                             <Text style={styles.avatarText}>
-                                {user.username.charAt(0).toUpperCase()}
+                                {user.username ? user.username.charAt(0).toUpperCase() : '?'}
                             </Text>
                         </View>
                     )}
 
                     {/* 🏆 Petit badge trophée discret */}
-                    <View style={styles.trophyBadge}>
-                        <Text style={styles.trophyIcon}>
-                            {getTrophyIcon(user.achievements.trophy)}
-                        </Text>
-                    </View>
+                    {/* Ensure user.achievements and user.achievements.trophy exist before trying to render */}
+                    {user.achievements && user.achievements.trophy && (
+                        <View style={styles.trophyBadge}>
+                            <Text style={styles.trophyIcon}>
+                                {getTrophyIcon(user.achievements.trophy)}
+                            </Text>
+                        </View>
+                    )}
                 </LinearGradient>
             </TouchableOpacity>
         </Marker>
@@ -75,15 +86,18 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 6,
         elevation: 8,
-        position: 'relative',
+        position: 'relative', // Keep this for trophy badge positioning
     },
     avatar: {
         width: 40,
         height: 40,
         borderRadius: 20,
+        // Ensure the image itself is visible within its container
+        resizeMode: 'cover', // Added: Ensures the image covers the area,
+        //       can also use 'contain' or 'stretch' depending on desired effect
     },
     defaultAvatar: {
-        backgroundColor: '#4A90E2',
+        backgroundColor: '#4A90E2', // Default color for initial
         justifyContent: 'center',
         alignItems: 'center',
     },

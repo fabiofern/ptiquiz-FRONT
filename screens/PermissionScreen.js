@@ -12,8 +12,9 @@ import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 SplashScreen.preventAutoHideAsync();
 
 export default function PermissionScreen({ navigation }) {
+    //    const URL = "https://ptiquiz-back.fly.dev"
     const URL = EXPO_PUBLIC_BACKEND_URL;
-    const dispatch = useDispatch();
+    ; const dispatch = useDispatch();
     const { userData } = useSelector((state) => state.user);
     const [isLoading, setIsLoading] = useState(false);
 

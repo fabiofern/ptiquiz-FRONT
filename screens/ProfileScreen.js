@@ -84,6 +84,7 @@ const AuroraBackground = () => {
 };
 
 export default function ProfileScreen({ navigation }) {
+    // const URL = "https://ptiquiz-back.fly.dev";
     const URL = EXPO_PUBLIC_BACKEND_URL;
     const dispatch = useDispatch();
     const { userData, isLoggedIn } = useSelector((state) => state.user);
@@ -636,7 +637,7 @@ export default function ProfileScreen({ navigation }) {
                                                         <Text style={styles.rewardIcon}>{trophy.icon}</Text>
                                                         <View style={styles.rewardInfo}>
                                                             <Text style={styles.rewardName}>{trophy.name}</Text>
-                                                            <Text style={styles.rewardDesc}>{trophy.description}</Text>
+                                                            <Text style={styles.rewardDesc}>{trophy.description}</Text> {/* <--- CE TEXTE PEUT DÉBORDER */}
                                                             <Text style={styles.rewardPoints}>+{trophy.points} points</Text>
                                                         </View>
                                                     </BlurView>
@@ -1357,7 +1358,7 @@ const styles = StyleSheet.create({
     },
     rewardItemWrapper: {
         width: 150,
-        height: 160,
+        // height: 220,
         borderRadius: 15,
         overflow: 'hidden',
         marginRight: 15,
@@ -1375,7 +1376,7 @@ const styles = StyleSheet.create({
     rewardItemBlur: {
         flex: 1,
         width: '100%',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
         padding: 10,
         borderRadius: 15,

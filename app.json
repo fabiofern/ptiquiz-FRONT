@@ -1,71 +1,72 @@
 {
-  "expo": {
-    "name": "ton-app-name",
-    "slug": "ton-slug",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/ddd.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFE0B2" 
-    },
-    "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Cette app utilise votre position pour découvrir des quiz autour de vous.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette app utilise votre position pour découvrir des quiz même en arrière-plan.",
-        "UIBackgroundModes": [
-          "location",
-          "location"
-        ]
-      },
-      "bundleIdentifier": "com.fabioferdac.tonslug"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/ddd.png",
-        "backgroundColor": "#FFE0B2" 
-      },
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
-      ],
-      "package": "com.fabioferdac.tonslug"
-    },
-    "web": {
-      "favicon": "./assets/ddd.png"
-    },
-    "plugins": [
-      "expo-dev-client",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Cette app utilise votre position pour découvrir des quiz autour de vous.",
-          "locationAlwaysPermission": "Cette app utilise votre position pour découvrir des quiz même en arrière-plan.",
-          "locationWhenInUsePermission": "Cette app utilise votre position pour découvrir des quiz autour de vous.",
-          "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/ddd.png",
-          "color": "#FFE0B2" 
-        }
-      ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "9ad02270-4232-48ef-bc76-d07d2d68bcfa"
-      }
-    }
-  }
+ "expo": {
+   "name": "TiQuiZ",
+   "slug": "ton-slug",
+   "version": "1.0.0",
+   "orientation": "portrait",
+   "icon": "./assets/icon.png",
+   "userInterfaceStyle": "light",
+   "splash": {
+     "image": "./assets/icon.png",
+     "resizeMode": "contain",
+     "backgroundColor": "#FFE0B2" 
+   },
+   "ios": {
+     "icon": "./assets/icon.png",
+     "supportsTablet": true,
+     "infoPlist": {
+       "NSLocationWhenInUseUsageDescription": "Cette app utilise votre position pour découvrir des quiz autour de vous.",
+       "NSLocationAlwaysAndWhenInUseUsageDescription": "Cette app utilise votre position pour découvrir des quiz même en arrière-plan.",
+       "UIBackgroundModes": [
+         "location",
+         "location"
+       ]
+     },
+     "bundleIdentifier": "com.fabioferdac.tonslug"
+   },
+   "android": {
+     "adaptiveIcon": {
+       "foregroundImage": "./assets/icon.png",
+       "backgroundColor": "#FFE0B2" 
+     },
+     "permissions": [
+       "ACCESS_FINE_LOCATION",
+       "ACCESS_BACKGROUND_LOCATION",
+       "android.permission.ACCESS_COARSE_LOCATION",
+       "android.permission.ACCESS_FINE_LOCATION",
+       "android.permission.ACCESS_BACKGROUND_LOCATION",
+       "android.permission.FOREGROUND_SERVICE",
+       "android.permission.FOREGROUND_SERVICE_LOCATION"
+     ],
+     "package": "com.fabioferdac.tonslug"
+   },
+   "web": {
+     "favicon": "./assets/icon.png"
+   },
+   "plugins": [
+     "expo-dev-client",
+     [
+       "expo-location",
+       {
+         "locationAlwaysAndWhenInUsePermission": "Cette app utilise votre position pour découvrir des quiz autour de vous.",
+         "locationAlwaysPermission": "Cette app utilise votre position pour découvrir des quiz même en arrière-plan.",
+         "locationWhenInUsePermission": "Cette app utilise votre position pour découvrir des quiz autour de vous.",
+         "isIosBackgroundLocationEnabled": true,
+         "isAndroidBackgroundLocationEnabled": true
+       }
+     ],
+     [
+       "expo-notifications",
+       {
+         "icon": "./assets/icon.png",
+         "color": "#FFE0B2" 
+       }
+     ]
+   ],
+   "extra": {
+     "eas": {
+       "projectId": "9ad02270-4232-48ef-bc76-d07d2d68bcfa"
+     }
+   }
+ }
 }

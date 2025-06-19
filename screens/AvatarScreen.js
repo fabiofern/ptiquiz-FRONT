@@ -21,7 +21,8 @@ import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 SplashScreen.preventAutoHideAsync();
 
-const URL = EXPO_PUBLIC_BACKEND_URL 
+// const URL = "https://ptiquiz-back.fly.dev";
+const URL = EXPO_PUBLIC_BACKEND_URL;
 
 const { width, height } = Dimensions.get("window"); // Get screen dimensions
 
@@ -29,7 +30,7 @@ const { width, height } = Dimensions.get("window"); // Get screen dimensions
 const AuroraBackground = () => {
     // État pour savoir si les animations sont initialisées
     const [isReady, setIsReady] = useState(false);
-    
+
     // Initialisation des valeurs animées dans un useRef qui s'exécute une seule fois
     const blobs = useRef([]);
 

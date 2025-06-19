@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     StyleSheet, View, SafeAreaView, TextInput, Text, Modal, TouchableOpacity,
-    Image, Animated, Dimensions
+    Image, Animated, Dimensions, Alert
 } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +15,6 @@ import { EXPO_PUBLIC_BACKEND_URL } from '@env';
 
 SplashScreen.preventAutoHideAsync();
 
-const URL = EXPO_PUBLIC_BACKEND_URL;
 // Dimensions de l'écran (lecture directe, mais les valeurs Animated.Value seront initialisées dans useEffect)
 const { width, height } = Dimensions.get('window');
 
@@ -122,6 +121,8 @@ export default function LoginScreen({ navigation }) {
     // Redux
     const dispatch = useDispatch();
     const { loading, isLoggedIn } = useSelector((state) => state.user);
+    // const URL = "https://ptiquiz-back.fly.dev";
+    const URL = EXPO_PUBLIC_BACKEND_URL;
 
     // Chargement des polices
     const [loaded] = useFonts({
@@ -176,12 +177,12 @@ export default function LoginScreen({ navigation }) {
         }
 
         if (!email.trim() || !signUpPassword.trim() || !confirmPassword.trim()) {
-            alert.alert("Veuillez remplir tous les champs.");
+            Alert.alert("Veuillez remplir tous les champs.");
             return;
         }
 
         if (signUpPassword !== confirmPassword) {
-            alert.alert("Les mots de passe ne correspondent pas.");
+            Alert.alert("Les mots de passe ne correspondent pas.");
             return;
         }
 
@@ -216,7 +217,7 @@ export default function LoginScreen({ navigation }) {
                     navigation.navigate('Avatar'); // Naviguer après inscription
                 } else {
                     dispatch(updateUser({ loading: false }));
-                    alert.alert('utilisateur deja present');
+                    Alert.alert('utilisateur deja present');
                 }
             })
             .catch(error => {
@@ -236,7 +237,7 @@ export default function LoginScreen({ navigation }) {
         console.log("Tentative de connection avec :", { email, logInPassword, });
 
         if (!email.trim() || !logInPassword.trim()) {
-            alert.alert("Veuillez remplir tous les champs.");
+            Alert.alert("Veuillez remplir tous les champs.");
             return;
         }
 
@@ -306,7 +307,7 @@ export default function LoginScreen({ navigation }) {
 
                 } else {
                     dispatch(updateUser({ loading: false }));
-                    alert.alert("Nom d'utilisateur ou mot de passe incorrect.");
+                    Alert.alert("Nom d'utilisateur ou mot de passe incorrect.");
                 }
             })
             .catch(error => {

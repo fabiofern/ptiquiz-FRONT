@@ -43,6 +43,11 @@ const AuroraBackground = () => {
         }
     }, [isReady]);
 
+
+    // const URL = "https://ptiquiz-back.fly.dev";
+    const URL = EXPO_PUBLIC_BACKEND_URL;
+
+
     const auroraColors = [
         'rgba(255, 152, 0, 0.15)',
         'rgba(255, 112, 67, 0.15)',
